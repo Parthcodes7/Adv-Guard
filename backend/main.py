@@ -29,6 +29,7 @@ HISTORY_CSV = os.path.join(DATA_DIR, "historical_history.csv")
 
 class EvasionRequest(BaseModel):
     epsilon: float = 0.1
+    scenario: str = "adversarial"
 
 def run_adversarial_attack(model, fraud_transaction, epsilon=0.1, max_steps=500):
     perturbed = fraud_transaction.copy()
@@ -51,19 +52,28 @@ def evaluate_transaction(req: EvasionRequest):
         
     model = joblib.load(MODEL_PATH)
     
-    # Load a fraud transaction from history
+    # Load transactions from history
     df = pd.read_csv(HISTORY_CSV, header=None)
-    fraud_data = df[df[29] == 1.0].drop(columns=[29]).values
-    if len(fraud_data) == 0:
-        raise HTTPException(status_code=500, detail="No fraud data found in history.")
+    if req.scenario == "safe":
+        data = df[df[29] == 0.0].drop(columns=[29]).values
+    else:
+        data = df[df[29] == 1.0].drop(columns=[29]).values
         
-    target_txn = fraud_data[np.random.randint(len(fraud_data))]
+    if len(data) == 0:
+        raise HTTPException(status_code=500, detail=f"No data found for scenario {req.scenario}.")
+        
+    target_txn = data[np.random.randint(len(data))]
     
-    # Execute Attack
-    perturbed_txn, steps, success = run_adversarial_attack(model, target_txn, req.epsilon)
-    
-    if not success:
-        return {"success": False, "message": "Failed to evade ML model."}
+    if req.scenario == "adversarial":
+        perturbed_txn, steps, success = run_adversarial_attack(model, target_txn, req.epsilon)
+        if not success:
+            return {"success": False, "message": "Failed to evade ML model."}
+        ml_prediction = "Safe (Fooled)"
+    else:
+        perturbed_txn = target_txn.copy()
+        steps = 0
+        pred = model.predict([perturbed_txn])[0]
+        ml_prediction = "Fraud" if pred == 1 else "Safe"
         
     # Save perturbed transaction for C++ engine
     np.savetxt(EVASION_CSV, perturbed_txn.reshape(1, -1), delimiter=",")
@@ -80,7 +90,8 @@ def evaluate_transaction(req: EvasionRequest):
         "steps_taken": steps,
         "original_features": target_txn.tolist(),
         "perturbed_features": perturbed_txn.tolist(),
-        "ml_prediction": "Safe (Fooled)",
+        "ml_prediction": ml_prediction,
         "advguard_blocked": blocked,
-        "cpp_report": cpp_output
+        "cpp_report": cpp_output,
+        "scenario": req.scenario
     }

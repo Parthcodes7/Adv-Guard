@@ -12,6 +12,33 @@ struct Transaction {
     bool is_fraud; // Ground truth or expert label
 };
 
+// --- Binary Search Tree (BST) ---
+struct BSTNode {
+    std::string id;
+    Transaction data;
+    BSTNode* left;
+    BSTNode* right;
+
+    BSTNode(const std::string& key, const Transaction& t) : id(key), data(t), left(nullptr), right(nullptr) {}
+};
+
+class BST {
+private:
+    BSTNode* root;
+
+    BSTNode* insertRec(BSTNode* node, const std::string& id, const Transaction& data);
+    BSTNode* searchRec(BSTNode* node, const std::string& id) const;
+    void clearRec(BSTNode* node);
+
+public:
+    BST();
+    ~BST();
+
+    void insert(const Transaction& data);
+    bool search(const std::string& id, Transaction& out_data) const;
+};
+
+
 // --- K-D Tree Structures ---
 struct KDNode {
     Transaction data;
@@ -89,12 +116,45 @@ public:
     bool checkCollision(const Transaction& t) const;
 };
 
+// --- LRU Cache (Doubly Linked List + Hash Map) ---
+struct CacheNode {
+    std::string key;
+    bool is_blocked;
+    std::string report;
+    CacheNode* prev;
+    CacheNode* next;
+
+    CacheNode(std::string k, bool b, std::string r) 
+        : key(k), is_blocked(b), report(r), prev(nullptr), next(nullptr) {}
+};
+
+class LRUCache {
+private:
+    int capacity;
+    std::unordered_map<std::string, CacheNode*> cache_map;
+    CacheNode* head;
+    CacheNode* tail;
+
+    void removeNode(CacheNode* node);
+    void addToHead(CacheNode* node);
+
+public:
+    LRUCache(int cap = 1000);
+    ~LRUCache();
+
+    bool get(const std::string& key, bool& is_blocked, std::string& report);
+    void put(const std::string& key, bool is_blocked, const std::string& report);
+};
+
 // --- Core AdvGuard Discrepancy Engine ---
 class AdvGuardEngine {
 private:
     KDTree kd_tree;
     LSH lsh;
+    LRUCache cache; // Integrated LRU Cache
     double evasion_threshold;
+    
+    std::string hashTransactionFeatures(const Transaction& t) const;
 
 public:
     AdvGuardEngine(int dims, int lsh_tables, int lsh_functions, double lsh_width, double threshold = 0.6);

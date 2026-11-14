@@ -10,5 +10,6 @@ add_executable(advguard_engine
     src/KDTree.cpp 
     src/MaxHeap.cpp 
     src/LSH.cpp 
+    src/BST.cpp
     src/AdvGuardEngine.cpp
 )

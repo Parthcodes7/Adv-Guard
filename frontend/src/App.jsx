@@ -107,8 +107,11 @@ const InsightBox = ({ color = 'cyan', icon = 'ℹ️', title, children }) => (
 
 // Plain-English narrative shown below results
 const NarrativeSummary = ({ result, parsed, blocked, steps, epsilon }) => {
-  const changedCount = result.perturbed_features.filter((v, i) => Math.abs(v - result.original_features[i]) > 0.0001).length
+  const isAdv = result.scenario === 'adversarial';
+  const isSafe = result.scenario === 'safe';
+  const changedCount = isAdv ? result.perturbed_features.filter((v, i) => Math.abs(v - result.original_features[i]) > 0.0001).length : 0;
   const fraudPct = parsed?.fraudRatio != null ? Math.round(parsed.fraudRatio * 100) : null
+  
   return (
     <div className="glass-card narrative-card">
       <h3>📖 What Just Happened? — Plain-English Summary</h3>
@@ -116,68 +119,47 @@ const NarrativeSummary = ({ result, parsed, blocked, steps, epsilon }) => {
         <div className="narrative-step">
           <div className="nstep-num">①</div>
           <div className="nstep-text">
-            <strong>The attacker started with a known fraudulent transaction</strong> from the historical dataset
-            (a real fraud record that the Random Forest correctly identified as fraud).
+            <strong>The transaction started as a {isSafe ? 'Legitimate' : 'Fraudulent'} transaction</strong> from the historical dataset.
+          </div>
+        </div>
+        {isAdv && (
+          <div className="narrative-step">
+            <div className="nstep-num">②</div>
+            <div className="nstep-text">
+              <strong>The evasion attack ran for {steps} iterations</strong>, nudging {changedCount} of the
+              {' '}{result.perturbed_features.length} transaction features by up to ε={epsilon} per step.
+            </div>
+          </div>
+        )}
+        <div className="narrative-step">
+          <div className="nstep-num">{isAdv ? '③' : '②'}</div>
+          <div className="nstep-text">
+            <strong>The Random Forest ML Model made its prediction:</strong> {result.ml_prediction}.
+            {isAdv && " The model was fooled by the perturbations!"}
+            {!isAdv && !isSafe && " The model correctly identified the fraud."}
+            {isSafe && " The model correctly identified the safe transaction."}
           </div>
         </div>
         <div className="narrative-step">
-          <div className="nstep-num">②</div>
+          <div className="nstep-num">{isAdv ? '④' : '③'}</div>
           <div className="nstep-text">
-            <strong>The evasion attack ran for {steps} iterations</strong>, nudging {changedCount} of the
-            {' '}{result.perturbed_features.length} transaction features by up to ε={epsilon} per step.
-            Each change is tiny — comparable to rounding a dollar amount to a slightly different cent.
-            Yet the cumulative effect moves the transaction's feature vector just across the Random Forest's decision boundary.
-          </div>
-        </div>
-        <div className="narrative-step">
-          <div className="nstep-num">③</div>
-          <div className="nstep-text">
-            <strong>The Random Forest was fooled</strong> — it now predicts the transaction is <em>Safe (Class 0)</em>.
-            This is a real vulnerability in production fraud detection systems: an attacker with knowledge of
-            the model (white-box attack) can reliably craft evasion samples like this.
-          </div>
-        </div>
-        <div className="narrative-step">
-          <div className="nstep-num">④</div>
-          <div className="nstep-text">
-            <strong>AdvGuard's C++ engine performed a geometric check</strong> using a custom KD-Tree
-            (binary space-partitioning tree, O(log N) search). It found the nearest historical transactions
-            in the same feature space and computed their fraud ratio.
+            <strong>AdvGuard's C++ engine performed a geometric check</strong> using a custom KD-Tree.
             {fraudPct != null && <> The neighborhood was <strong>{fraudPct}% fraudulent</strong>.</>}
           </div>
         </div>
         <div className="narrative-step">
-          <div className={`nstep-num ${blocked ? 'nstep-blocked' : 'nstep-allowed'}`}>⑤</div>
+          <div className={`nstep-num ${blocked ? 'nstep-blocked' : 'nstep-allowed'}`}>{isAdv ? '⑤' : '④'}</div>
           <div className="nstep-text">
             {blocked
-              ? <><strong>AdvGuard overrode the ML model and BLOCKED the transaction.</strong> Because
+              ? <><strong>AdvGuard BLOCKED the transaction.</strong> Because
                   {fraudPct != null ? ` ${fraudPct}%` : ' the majority'} of the closest neighbors were
-                  historical fraud, the geometric evidence was strong enough to reject the ML model's
-                  "safe" verdict. The attacker's perturbations changed the feature values, but could not
-                  escape the fraud cluster in high-dimensional space.
-                </>
+                  historical fraud, the geometric evidence was strong enough to block it.</>
               : <><strong>The transaction passed through AdvGuard's check.</strong> The geometric
-                  neighborhood was not fraudulent enough (below 60% threshold) to override the ML model.
-                  This can happen with a very large ε — the attacker may have moved the transaction
-                  far enough away from known fraud clusters. Try a smaller ε to see AdvGuard block it.
-                </>
+                  neighborhood was not fraudulent enough (below 60% threshold) to trigger a block.</>
             }
           </div>
         </div>
       </div>
-      {blocked && (
-        <div className="narrative-conclusion conclusion-success">
-          🏆 <strong>Core DSA insight demonstrated:</strong> Custom geometric data structures (KD-Tree + LSH)
-          can catch adversarial ML attacks that evade statistical models — purely through spatial reasoning,
-          with no ML of their own.
-        </div>
-      )}
-      {!blocked && (
-        <div className="narrative-conclusion conclusion-warn">
-          💡 <strong>Try reducing ε</strong> (e.g. 0.05) — a subtler attack keeps the transaction closer
-          to the fraud cluster, making it easier for AdvGuard to detect geometrically.
-        </div>
-      )}
     </div>
   )
 }
@@ -232,6 +214,7 @@ const FraudGauge = ({ ratio }) => {
 // ── main app ──────────────────────────────────────────────────────────────────
 function App() {
   const [epsilon, setEpsilon] = useState(0.1)
+  const [scenario, setScenario] = useState('adversarial')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [parsed, setParsed] = useState(null)
@@ -247,7 +230,7 @@ function App() {
       const response = await fetch('http://localhost:8000/api/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ epsilon })
+        body: JSON.stringify({ epsilon, scenario })
       })
       if (!response.ok) {
         const err = await response.json()
@@ -289,17 +272,19 @@ function App() {
       {/* Verdict Banner */}
       {result && (
         <div className={`verdict-banner ${blocked ? 'banner-blocked' : 'banner-allowed'}`}>
-          <div className="verdict-icon">{blocked ? '🛡️' : '🚨'}</div>
+          <div className="verdict-icon">{blocked ? '🛡️' : '✅'}</div>
           <div className="verdict-text">
-            <strong>{blocked ? 'ATTACK BLOCKED BY ADVGUARD' : 'ATTACK SUCCESSFUL (FRAUD ESCAPED)'}</strong>
-            <span>{blocked
-              ? `The ML model was tricked, but AdvGuard's geometric engine caught the anomaly and blocked the fraud.`
-              : `The ML model was tricked into approving the fraud, and AdvGuard did not detect enough nearby historical fraud to override it.`}</span>
+            <strong>{blocked ? 'TRANSACTION BLOCKED BY ADVGUARD' : 'TRANSACTION ALLOWED'}</strong>
+            <span>{result.scenario === 'adversarial' 
+              ? (blocked ? "The ML model was tricked, but AdvGuard caught the anomaly and blocked the fraud." : "The ML model was tricked into approving the fraud, and AdvGuard did not detect enough nearby historical fraud to override it.")
+              : (blocked ? "AdvGuard detected this as fraud based on its geometric neighborhood." : "AdvGuard approved the transaction as safe.")}</span>
           </div>
-          <div className="verdict-steps">
-            <div className="vstep-num">{steps}</div>
-            <div className="vstep-lbl">perturbation<br/>steps</div>
-          </div>
+          {result.scenario === 'adversarial' && (
+            <div className="verdict-steps">
+              <div className="vstep-num">{steps}</div>
+              <div className="vstep-lbl">perturbation<br/>steps</div>
+            </div>
+          )}
         </div>
       )}
 
@@ -310,25 +295,32 @@ function App() {
       <section className="pipeline-section">
         <h2 className="section-title">Attack &amp; Defense Pipeline</h2>
         <div className="pipeline-track">
-          <PipelineStep num="1" title="Attacker's Goal" status={phase >= 1 ? 'success' : 'idle'}>
-            <p>Take a known <strong>Fraudulent</strong> transaction and modify it slightly to bypass detection.</p>
+          <PipelineStep num="1" title="Input Transaction" status={phase >= 1 ? 'success' : 'idle'}>
+            <p>Select a <strong>{scenario === 'safe' ? 'Safe' : 'Fraudulent'}</strong> transaction from history.</p>
           </PipelineStep>
           <div className="pipe-arrow">→</div>
-          <PipelineStep num="2" title={`Evasion Attack (ε=${epsilon})`} status={phase === 1 ? 'active' : phase >= 2 ? 'danger' : 'idle'}>
-            <p>Features are nudged by <strong>ε={epsilon}</strong> per step until the ML model makes a mistake.</p>
-            {phase >= 2 && result && <div className="pipe-stat">{steps} steps taken</div>}
+          
+          {scenario === 'adversarial' && (
+            <>
+              <PipelineStep num="2" title={`Evasion Attack (ε=${epsilon})`} status={phase === 1 ? 'active' : phase >= 2 ? 'danger' : 'idle'}>
+                <p>Features are nudged by <strong>ε={epsilon}</strong> per step.</p>
+                {phase >= 2 && result && <div className="pipe-stat">{steps} steps taken</div>}
+              </PipelineStep>
+              <div className="pipe-arrow">→</div>
+            </>
+          )}
+
+          <PipelineStep num={scenario === 'adversarial' ? "3" : "2"} title="ML Model" status={phase >= 2 ? (result?.ml_prediction === 'Fraud' ? 'success' : 'danger') : 'idle'}>
+            <p>The Random Forest makes its prediction.</p>
+            {phase >= 3 && result && <div className="pipe-stat">ML Prediction: {result.ml_prediction}</div>}
           </PipelineStep>
           <div className="pipe-arrow">→</div>
-          <PipelineStep num="3" title="ML Model — Tricked!" status={phase >= 2 ? 'danger' : 'idle'}>
-            <p>The ML model is fooled and incorrectly classifies the modified fraud as <strong>Legitimate / Safe</strong>.</p>
-            {phase >= 3 && <div className="pipe-stat ml-fooled">❌ ML Prediction: Legitimate</div>}
-          </PipelineStep>
-          <div className="pipe-arrow">→</div>
-          <PipelineStep num="4" title="AdvGuard C++ Engine" status={phase === 2 ? 'active' : phase === 3 ? (blocked ? 'success' : 'warn') : 'idle'}>
-            <p>Checks the transaction's true coordinates against historical fraud using KD-Trees.</p>
+          
+          <PipelineStep num={scenario === 'adversarial' ? "4" : "3"} title="AdvGuard C++ Engine" status={phase === 2 ? 'active' : phase === 3 ? (blocked ? 'success' : 'warn') : 'idle'}>
+            <p>Checks geometric neighborhood in KD-Tree.</p>
             {phase >= 3 && (
               <div className={`pipe-stat ${blocked ? 'stat-green' : 'stat-amber'}`}>
-                {blocked ? '🛡️ BLOCKED (Fraud Detected)' : '⚠️ ALLOWED (Fraud Escaped)'}
+                {blocked ? '🛡️ BLOCKED' : '⚠️ ALLOWED'}
               </div>
             )}
           </PipelineStep>
@@ -337,24 +329,50 @@ function App() {
 
       {/* Controls */}
       <section className="controls-section glass-card">
-        <h2>Configure &amp; Launch Attack</h2>
+        <h2>Configure &amp; Launch Simulation</h2>
         <div className="controls-grid">
-          <div className="control-group">
-            <label className="ctrl-label">
-              Perturbation Strength &nbsp;<span className="epsilon-val">ε = {epsilon}</span>
-            </label>
-            <input type="range" min="0.01" max="0.5" step="0.01" value={epsilon}
-              onChange={e => setEpsilon(+e.target.value)} className="epsilon-slider" disabled={loading} />
-            <div className="preset-row">
-              {EPSILON_PRESETS.map(p => (
-                <button key={p.value} className={`preset-btn ${epsilon === p.value ? 'preset-active' : ''}`}
-                  onClick={() => setEpsilon(p.value)} disabled={loading}>{p.label}</button>
-              ))}
+          
+          <div className="control-group" style={{ gridColumn: '1 / -1' }}>
+            <label className="ctrl-label">Predefined Demo Cases (For Guides / Presentations)</label>
+            <div className="demo-cases-grid">
+              <div className={`demo-card ${scenario === 'safe' ? 'demo-active' : ''}`} onClick={() => setScenario('safe')}>
+                <h4>1. Baseline Safe</h4>
+                <p>Normal transaction. ML approves, AdvGuard allows.</p>
+              </div>
+              <div className={`demo-card ${scenario === 'fraud' ? 'demo-active' : ''}`} onClick={() => setScenario('fraud')}>
+                <h4>2. Normal Fraud</h4>
+                <p>Standard fraud. ML blocks, AdvGuard blocks.</p>
+              </div>
+              <div className={`demo-card ${scenario === 'adversarial' && epsilon === 0.05 ? 'demo-active' : ''}`} onClick={() => { setScenario('adversarial'); setEpsilon(0.05); }}>
+                <h4>3. Subtle Evasion</h4>
+                <p>Attacker uses ε=0.05. ML is fooled, AdvGuard blocks via KD-Tree.</p>
+              </div>
+              <div className={`demo-card ${scenario === 'adversarial' && epsilon === 0.3 ? 'demo-active' : ''}`} onClick={() => { setScenario('adversarial'); setEpsilon(0.3); }}>
+                <h4>4. Aggressive Evasion</h4>
+                <p>Attacker uses ε=0.3. Fast evasion but highly anomalous.</p>
+              </div>
             </div>
           </div>
+
+          {scenario === 'adversarial' && (
+            <div className="control-group">
+              <label className="ctrl-label">
+                Perturbation Strength &nbsp;<span className="epsilon-val">ε = {epsilon}</span>
+              </label>
+              <input type="range" min="0.01" max="0.5" step="0.01" value={epsilon}
+                onChange={e => setEpsilon(+e.target.value)} className="epsilon-slider" disabled={loading} />
+              <div className="preset-row">
+                {EPSILON_PRESETS.map(p => (
+                  <button key={p.value} className={`preset-btn ${epsilon === p.value ? 'preset-active' : ''}`}
+                    onClick={() => setEpsilon(p.value)} disabled={loading}>{p.label}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="launch-group">
             <button className="btn btn-danger launch-btn" onClick={simulateAttack} disabled={loading}>
-              {loading ? <><span className="spinner" /> Running Simulation…</> : '⚡ Launch Evasion Attack'}
+              {loading ? <><span className="spinner" /> Running Simulation…</> : '⚡ Launch Simulation'}
             </button>
             {error && <div className="error-msg">⛔ {error}</div>}
           </div>
