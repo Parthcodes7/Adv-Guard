@@ -101,6 +101,7 @@ class EmailDispatcher:
         self.sender_email = sender_email
         self.sender_password = sender_password
         self.recipient_email = recipient_email
+        self.last_message = ""
 
     def send_alert(self, incident: dict) -> bool:
         try:
@@ -205,29 +206,42 @@ class EmailDispatcher:
             except Exception as e:
                 logger.warning("Could not write preview HTML: %s", e)
 
-            # If sender credentials are provided, attempt real SMTP transmission
-            if self.sender_email and self.sender_password:
-                try:
-                    msg = MIMEMultipart("alternative")
-                    msg["Subject"] = subject
-                    msg["From"] = self.sender_email
-                    msg["To"] = self.recipient_email or self.sender_email
-                    msg.attach(MIMEText(html, "html"))
+            # Verify sender credentials
+            if not self.sender_email or not self.sender_password:
+                self.last_message = "Sender Email & 16-character App Password are required to deliver real emails to your inbox. Please enter them in Settings."
+                logger.warning(self.last_message)
+                return False
 
-                    context = ssl.create_default_context()
-                    with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, context=context, timeout=8) as server:
-                        server.login(self.sender_email, self.sender_password)
-                        server.sendmail(self.sender_email, self.recipient_email or self.sender_email, msg.as_string())
-                    logger.info("Real SMTP email alert sent for incident %s", incident.get("id"))
-                    return True
-                except Exception as smtp_err:
-                    logger.warning("SMTP transmission failed (%s). Falling back to simulated email preview.", smtp_err)
-                    return True
+            recipient = self.recipient_email or self.sender_email
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = self.sender_email
+            msg["To"] = recipient
+            msg.attach(MIMEText(html, "html"))
 
-            logger.info("Email alert generated and saved to preview for incident %s (Simulated Mode)", incident.get("id"))
+            port = int(self.smtp_port) if self.smtp_port else 465
+            if port == 465:
+                context = ssl.create_default_context()
+                with smtplib.SMTP_SSL(self.smtp_host, port, context=context, timeout=12) as server:
+                    server.login(self.sender_email, self.sender_password)
+                    server.sendmail(self.sender_email, recipient, msg.as_string())
+            else:
+                context = ssl.create_default_context()
+                with smtplib.SMTP(self.smtp_host, port, timeout=12) as server:
+                    server.starttls(context=context)
+                    server.login(self.sender_email, self.sender_password)
+                    server.sendmail(self.sender_email, recipient, msg.as_string())
+
+            self.last_message = f"Real email alert successfully delivered to {recipient}!"
+            logger.info(self.last_message)
             return True
 
+        except smtplib.SMTPAuthenticationError as auth_err:
+            self.last_message = "Gmail Auth Failed: Google blocks regular passwords. Generate a 16-character App Password at myaccount.google.com/apppasswords and enter it in Settings."
+            logger.error("SMTP Auth Error: %s", auth_err)
+            return False
         except Exception as exc:
+            self.last_message = f"SMTP transmission error: {str(exc)}"
             logger.error("EmailDispatcher.send_alert failed: %s", exc)
             return False
 

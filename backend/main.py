@@ -94,6 +94,22 @@ def handle_action(incident_id: str, body: dict):
     success = incident_manager.update_action(incident_id, action)
     return {"success": success}
 
+@app.get("/api/notifications/config")
+def get_config():
+    return {
+        "email_enabled": notification_config.email_enabled,
+        "smtp_host": notification_config.smtp_host,
+        "smtp_port": notification_config.smtp_port,
+        "sender_email": notification_config.sender_email,
+        "sender_password": notification_config.sender_password,
+        "recipient_email": notification_config.recipient_email,
+        "discord_enabled": notification_config.discord_enabled,
+        "discord_webhook_url": notification_config.discord_webhook_url,
+        "telegram_enabled": notification_config.telegram_enabled,
+        "telegram_bot_token": notification_config.telegram_bot_token,
+        "telegram_chat_id": notification_config.telegram_chat_id
+    }
+
 @app.post("/api/notifications/config")
 def update_config(cfg: dict):
     for k, v in cfg.items():
@@ -124,9 +140,9 @@ def test_notification(body: dict):
         email_dispatcher.smtp_port = notification_config.smtp_port
         email_dispatcher.sender_email = notification_config.sender_email
         email_dispatcher.sender_password = notification_config.sender_password
-        email_dispatcher.recipient_email = notification_config.recipient_email or "analyst@advguard.internal"
+        email_dispatcher.recipient_email = notification_config.recipient_email
         ok = email_dispatcher.send_alert(test_incident)
-        error_msg = None if ok else "Failed to generate email alert"
+        error_msg = None if ok else email_dispatcher.last_message
     elif channel == "discord":
         if not notification_config.discord_webhook_url:
             error_msg = "Discord webhook URL not configured."

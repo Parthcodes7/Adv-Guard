@@ -140,6 +140,10 @@ export function AlertBell({ onClick, unreadCount }) {
 function SettingsModal({ onClose }) {
   const [cfg, setCfg] = useState({
     email_enabled: false,
+    smtp_host: 'smtp.gmail.com',
+    smtp_port: 465,
+    sender_email: '',
+    sender_password: '',
     recipient_email: '',
     discord_enabled: false,
     discord_webhook_url: '',
@@ -149,20 +153,40 @@ function SettingsModal({ onClose }) {
   })
   const [saving, setSaving] = useState(false)
 
+  useEffect(() => {
+    fetch('http://localhost:8000/api/notifications/config')
+      .then(r => r.json())
+      .then(data => {
+        if (data) setCfg(prev => ({ ...prev, ...data }))
+      })
+      .catch(() => {})
+  }, [])
+
   const toggle = (key) => setCfg(c => ({ ...c, [key]: !c[key] }))
   const set = (key, val) => setCfg(c => ({ ...c, [key]: val }))
 
   const testChannel = async (channel) => {
     try {
+      // First save current config so backend has credentials immediately
+      await fetch('http://localhost:8000/api/notifications/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cfg)
+      })
+
       const res = await fetch('http://localhost:8000/api/notifications/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel })
       })
       const data = await res.json()
-      showToast(data.success ? `✅ ${channel} test sent!` : `❌ ${channel} test failed`, data.success ? 'safe' : 'critical')
-    } catch {
-      showToast(`❌ Could not reach backend`, 'critical')
+      if (data.success) {
+        showToast(`✅ ${channel.toUpperCase()} alert sent successfully!`, 'safe')
+      } else {
+        showToast(`❌ ${data.error || 'Test failed'}`, 'critical')
+      }
+    } catch (err) {
+      showToast(`❌ Could not reach backend: ${err.message}`, 'critical')
     }
   }
 
@@ -186,7 +210,7 @@ function SettingsModal({ onClose }) {
 
   return (
     <div className="settings-modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="settings-modal">
+      <div className="settings-modal" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
         <h3>🔔 Notification Settings</h3>
 
         {/* Email */}
@@ -195,16 +219,34 @@ function SettingsModal({ onClose }) {
           <div className={`toggle-switch ${cfg.email_enabled ? 'on' : ''}`} onClick={() => toggle('email_enabled')} />
         </div>
         {cfg.email_enabled && (
-          <>
-            <input className="settings-input" placeholder="Recipient Email (e.g. analyst@bank.com)" value={cfg.recipient_email}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1rem' }}>
+            <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Recipient Email (Where alerts will be sent):</label>
+            <input className="settings-input" placeholder="e.g. your_email@gmail.com" value={cfg.recipient_email || ''}
               onChange={e => set('recipient_email', e.target.value)} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.4rem' }}>
+
+            <label style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.3rem' }}>Sender Gmail Account:</label>
+            <input className="settings-input" placeholder="e.g. sender_bot@gmail.com" value={cfg.sender_email || ''}
+              onChange={e => set('sender_email', e.target.value)} />
+
+            <label style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.3rem' }}>Sender 16-Character Google App Password:</label>
+            <input className="settings-input" type="password" placeholder="16-character Google App Password" value={cfg.sender_password || ''}
+              onChange={e => set('sender_password', e.target.value)} />
+
+            <div style={{ background: 'rgba(14, 165, 233, 0.1)', border: '1px solid rgba(14, 165, 233, 0.3)', borderRadius: '6px', padding: '8px 10px', fontSize: '0.72rem', color: '#7dd3fc', lineHeight: 1.4, marginTop: '0.2rem' }}>
+              ℹ️ <strong>Google Security Requirement:</strong> Gmail requires an <em>App Password</em> (not your normal password). Visit:
+              <br />
+              <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>
+                myaccount.google.com/apppasswords
+              </a>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.6rem' }}>
               <a href="http://localhost:8000/api/notifications/preview-email" target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: '#0ea5e9', textDecoration: 'underline' }}>
                 👁️ View Rendered Email Dossier
               </a>
-              <button className="action-btn" onClick={() => testChannel('email')}>Test Email</button>
+              <button className="action-btn" onClick={() => testChannel('email')}>Send Real Test Email</button>
             </div>
-          </>
+          </div>
         )}
 
         {/* Discord */}
