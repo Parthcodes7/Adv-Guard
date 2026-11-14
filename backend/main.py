@@ -6,6 +6,8 @@ import os
 import pandas as pd
 import numpy as np
 import joblib
+import threading
+from notifications import incident_manager, notification_config, email_dispatcher, webhook_dispatcher
 
 app = FastAPI()
 
@@ -40,6 +42,42 @@ def run_adversarial_attack(model, fraud_transaction, epsilon=0.1, max_steps=500)
         direction = -np.sign(perturbed) 
         perturbed += epsilon * direction
     return perturbed, max_steps, False
+
+@app.get("/api/incidents")
+def get_incidents():
+    return {"incidents": incident_manager.get_incidents()}
+
+@app.post("/api/incidents/{incident_id}/action")
+def handle_action(incident_id: str, body: dict):
+    action = body.get("action")
+    success = incident_manager.update_action(incident_id, action)
+    return {"success": success}
+
+@app.post("/api/notifications/config")
+def update_config(cfg: dict):
+    for k, v in cfg.items():
+        if hasattr(notification_config, k):
+            setattr(notification_config, k, v)
+    return {"success": True}
+
+@app.post("/api/notifications/test")
+def test_notification(body: dict):
+    test_incident = {
+        "id": "TEST_001", "severity": "CRITICAL", "threat_score": 0.9,
+        "epsilon": 0.05, "fraud_ratio": 0.9, "ml_prediction": "Safe (Fooled)",
+        "steps_taken": 12, "cpp_report": "BLOCKED as probable Adversarial Evasion Attempt.",
+        "timestamp": "2026-11-14T14:00:00", "status": "active"
+    }
+    channel = body.get("channel", "email")
+    if channel == "email":
+        ok = email_dispatcher.send_alert(test_incident)
+    elif channel == "discord":
+        ok = webhook_dispatcher.send_discord_alert(notification_config.discord_webhook_url, test_incident)
+    elif channel == "telegram":
+        ok = webhook_dispatcher.send_telegram_alert(notification_config.telegram_bot_token, notification_config.telegram_chat_id, test_incident)
+    else:
+        ok = False
+    return {"success": ok}
 
 @app.get("/api/ping")
 def ping():
@@ -84,8 +122,8 @@ def evaluate_transaction(req: EvasionRequest):
     
     cpp_output = result.stdout
     blocked = "BLOCKED" in cpp_output
-    
-    return {
+
+    result_dict = {
         "success": True,
         "steps_taken": steps,
         "original_features": target_txn.tolist(),
@@ -95,3 +133,24 @@ def evaluate_transaction(req: EvasionRequest):
         "cpp_report": cpp_output,
         "scenario": req.scenario
     }
+
+    if blocked:
+        incident = incident_manager.add_incident({
+            "epsilon": req.epsilon,
+            "steps_taken": steps,
+            "ml_prediction": ml_prediction,
+            "cpp_report": cpp_output,
+            "scenario": req.scenario
+        })
+
+        def dispatch():
+            if notification_config.email_enabled:
+                email_dispatcher.send_alert(incident)
+            if notification_config.discord_enabled:
+                webhook_dispatcher.send_discord_alert(notification_config.discord_webhook_url, incident)
+            if notification_config.telegram_enabled:
+                webhook_dispatcher.send_telegram_alert(notification_config.telegram_bot_token, notification_config.telegram_chat_id, incident)
+
+        threading.Thread(target=dispatch, daemon=True).start()
+
+    return result_dict

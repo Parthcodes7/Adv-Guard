@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import './index.css'
+import NotificationCenter, { AlertBell, useIncidentPoller } from './NotificationCenter'
 
 // ── Concept Glossary data ─────────────────────────────────────────────────────
 const CONCEPTS = [
@@ -220,7 +221,10 @@ function App() {
   const [parsed, setParsed] = useState(null)
   const [error, setError] = useState(null)
   const [phase, setPhase] = useState(0)
+  const [showNotifCenter, setShowNotifCenter] = useState(false)
   const resultsRef = useRef(null)
+
+  const { incidents, unreadCount, addLocalIncident } = useIncidentPoller()
 
   const simulateAttack = async () => {
     setLoading(true); setError(null); setResult(null); setParsed(null); setPhase(1)
@@ -240,6 +244,7 @@ function App() {
       setResult(data)
       setParsed(parseCppReport(data.cpp_report))
       setPhase(3)
+      if (data.advguard_blocked) addLocalIncident({ ...data, epsilon, scenario })
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300)
     } catch (err) {
       setError(err.message); setPhase(0)
@@ -266,8 +271,12 @@ function App() {
           <span className="hbadge cyan">KD-Tree O(log N)</span>
           <span className="hbadge red">Adversarial ML</span>
           <span className="hbadge green">LSH O(1)</span>
+          <AlertBell onClick={() => setShowNotifCenter(v => !v)} unreadCount={unreadCount} />
         </div>
       </header>
+
+      {/* Notification Center overlay */}
+      {showNotifCenter && <NotificationCenter incidents={incidents} />}
 
       {/* Verdict Banner */}
       {result && (
