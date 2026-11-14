@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import subprocess
 import os
@@ -98,10 +99,17 @@ def update_config(cfg: dict):
     for k, v in cfg.items():
         if hasattr(notification_config, k):
             setattr(notification_config, k, v)
+    # Rebuild email_dispatcher with fresh credentials from notification_config
+    email_dispatcher.smtp_host = notification_config.smtp_host
+    email_dispatcher.smtp_port = notification_config.smtp_port
+    email_dispatcher.sender_email = notification_config.sender_email
+    email_dispatcher.sender_password = notification_config.sender_password
+    email_dispatcher.recipient_email = notification_config.recipient_email
     return {"success": True}
 
 @app.post("/api/notifications/test")
 def test_notification(body: dict):
+    import logging
     test_incident = {
         "id": "TEST_001", "severity": "CRITICAL", "threat_score": 0.9,
         "epsilon": 0.05, "fraud_ratio": 0.9, "ml_prediction": "Safe (Fooled)",
@@ -109,15 +117,37 @@ def test_notification(body: dict):
         "timestamp": "2026-11-14T14:00:00", "status": "active"
     }
     channel = body.get("channel", "email")
+    error_msg = None
+    ok = False
     if channel == "email":
+        email_dispatcher.smtp_host = notification_config.smtp_host
+        email_dispatcher.smtp_port = notification_config.smtp_port
+        email_dispatcher.sender_email = notification_config.sender_email
+        email_dispatcher.sender_password = notification_config.sender_password
+        email_dispatcher.recipient_email = notification_config.recipient_email or "analyst@advguard.internal"
         ok = email_dispatcher.send_alert(test_incident)
+        error_msg = None if ok else "Failed to generate email alert"
     elif channel == "discord":
-        ok = webhook_dispatcher.send_discord_alert(notification_config.discord_webhook_url, test_incident)
+        if not notification_config.discord_webhook_url:
+            error_msg = "Discord webhook URL not configured."
+        else:
+            ok = webhook_dispatcher.send_discord_alert(notification_config.discord_webhook_url, test_incident)
     elif channel == "telegram":
-        ok = webhook_dispatcher.send_telegram_alert(notification_config.telegram_bot_token, notification_config.telegram_chat_id, test_incident)
+        if not notification_config.telegram_bot_token or not notification_config.telegram_chat_id:
+            error_msg = "Telegram bot_token or chat_id not configured."
+        else:
+            ok = webhook_dispatcher.send_telegram_alert(notification_config.telegram_bot_token, notification_config.telegram_chat_id, test_incident)
     else:
-        ok = False
-    return {"success": ok}
+        error_msg = "Unknown channel."
+    return {"success": ok, "error": error_msg}
+
+@app.get("/api/notifications/preview-email", response_class=HTMLResponse)
+def preview_email():
+    preview_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "latest_email_preview.html")
+    if os.path.exists(preview_path):
+        with open(preview_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return "<h3>No email generated yet. Run a test email or simulate an attack.</h3>"
 
 @app.get("/api/ping")
 def ping():

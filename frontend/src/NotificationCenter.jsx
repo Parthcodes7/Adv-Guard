@@ -196,9 +196,12 @@ function SettingsModal({ onClose }) {
         </div>
         {cfg.email_enabled && (
           <>
-            <input className="settings-input" placeholder="Recipient Email" value={cfg.recipient_email}
+            <input className="settings-input" placeholder="Recipient Email (e.g. analyst@bank.com)" value={cfg.recipient_email}
               onChange={e => set('recipient_email', e.target.value)} />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.4rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.4rem' }}>
+              <a href="http://localhost:8000/api/notifications/preview-email" target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: '#0ea5e9', textDecoration: 'underline' }}>
+                👁️ View Rendered Email Dossier
+              </a>
               <button className="action-btn" onClick={() => testChannel('email')}>Test Email</button>
             </div>
           </>

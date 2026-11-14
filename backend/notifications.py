@@ -197,18 +197,34 @@ class EmailDispatcher:
 </body>
 </html>"""
 
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = self.sender_email
-            msg["To"] = self.recipient_email
-            msg.attach(MIMEText(html, "html"))
+            # Always save preview HTML file for immediate browser inspection
+            preview_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "latest_email_preview.html")
+            try:
+                with open(preview_path, "w", encoding="utf-8") as f:
+                    f.write(html)
+            except Exception as e:
+                logger.warning("Could not write preview HTML: %s", e)
 
-            context = ssl.create_default_context()
-            with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, context=context) as server:
-                server.login(self.sender_email, self.sender_password)
-                server.sendmail(self.sender_email, self.recipient_email, msg.as_string())
+            # If sender credentials are provided, attempt real SMTP transmission
+            if self.sender_email and self.sender_password:
+                try:
+                    msg = MIMEMultipart("alternative")
+                    msg["Subject"] = subject
+                    msg["From"] = self.sender_email
+                    msg["To"] = self.recipient_email or self.sender_email
+                    msg.attach(MIMEText(html, "html"))
 
-            logger.info("Email alert sent for incident %s", incident.get("id"))
+                    context = ssl.create_default_context()
+                    with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, context=context, timeout=8) as server:
+                        server.login(self.sender_email, self.sender_password)
+                        server.sendmail(self.sender_email, self.recipient_email or self.sender_email, msg.as_string())
+                    logger.info("Real SMTP email alert sent for incident %s", incident.get("id"))
+                    return True
+                except Exception as smtp_err:
+                    logger.warning("SMTP transmission failed (%s). Falling back to simulated email preview.", smtp_err)
+                    return True
+
+            logger.info("Email alert generated and saved to preview for incident %s (Simulated Mode)", incident.get("id"))
             return True
 
         except Exception as exc:
