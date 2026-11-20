@@ -9,3 +9,4 @@ cpp_engine/build/
 ml_baseline/data/evasion_sample.csv
 ml_baseline/data/historical_history.csv
 backend/latest_email_preview.html
+*.log
