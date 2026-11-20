@@ -11,6 +11,7 @@ import threading
 from scipy.spatial import KDTree
 from notifications import incident_manager, notification_config, email_dispatcher, webhook_dispatcher
 from benchmark import get_benchmark_results
+from attacks import fgsm_attack, boundary_attack, jsma_sparse_attack, heuristic_attack, analyze_perturbation
 
 app = FastAPI()
 
@@ -33,18 +34,9 @@ EVASION_CSV = os.path.join(DATA_DIR, "evasion_sample.csv")
 HISTORY_CSV = os.path.join(DATA_DIR, "historical_history.csv")
 
 class EvasionRequest(BaseModel):
-    epsilon: float = 0.1
+    epsilon: float = 0.05
     scenario: str = "adversarial"
-
-def run_adversarial_attack(model, fraud_transaction, epsilon=0.1, max_steps=500):
-    perturbed = fraud_transaction.copy()
-    for step in range(max_steps):
-        prediction = model.predict([perturbed])[0]
-        if prediction == 0:
-            return perturbed, step, True
-        direction = -np.sign(perturbed) 
-        perturbed += epsilon * direction
-    return perturbed, max_steps, False
+    attack_method: str = "fgsm" # "fgsm", "boundary", "jsma", "heuristic"
 
 def execute_advguard_engine(perturbed_txn):
     # 1. Attempt to run compiled C++ engine
@@ -190,23 +182,44 @@ def evaluate_transaction(req: EvasionRequest):
     if req.scenario == "safe":
         data = df[df[29] == 0.0].drop(columns=[29]).values
     else:
-        data = df[df[29] == 1.0].drop(columns=[29]).values
+        fraud_candidates = df[df[29] == 1.0].drop(columns=[29]).values
+        # Filter for verified frauds where model initially predicts Fraud (1)
+        valid_frauds = [f for f in fraud_candidates if model.predict([f])[0] == 1]
+        data = np.array(valid_frauds) if len(valid_frauds) > 0 else fraud_candidates
         
     if len(data) == 0:
         raise HTTPException(status_code=500, detail=f"No data found for scenario {req.scenario}.")
         
     target_txn = data[np.random.randint(len(data))]
+    attack_label = req.attack_method.upper() if req.scenario == "adversarial" else "None"
     
     if req.scenario == "adversarial":
-        perturbed_txn, steps, success = run_adversarial_attack(model, target_txn, req.epsilon)
+        method = req.attack_method.lower()
+        if method == "boundary":
+            safe_data = df[df[29] == 0.0].drop(columns=[29]).values
+            safe_anchor = safe_data.mean(axis=0)
+            perturbed_txn, steps, success = boundary_attack(model, target_txn, safe_anchor)
+            attack_label = "Decision Boundary Probing"
+        elif method == "jsma":
+            perturbed_txn, steps, success = jsma_sparse_attack(model, target_txn, epsilon=req.epsilon)
+            attack_label = "Sparse Feature Saliency (JSMA)"
+        elif method == "heuristic":
+            perturbed_txn, steps, success = heuristic_attack(model, target_txn, epsilon=req.epsilon)
+            attack_label = "Heuristic Directional"
+        else: # default "fgsm"
+            perturbed_txn, steps, success = fgsm_attack(model, target_txn, epsilon=req.epsilon)
+            attack_label = "FGSM (Fast Gradient Sign)"
+            
         if not success:
-            return {"success": False, "message": "Failed to evade ML model."}
+            return {"success": False, "message": f"Attack ({attack_label}) failed to evade ML model."}
         ml_prediction = "Safe (Fooled)"
+        distortion_stats = analyze_perturbation(target_txn, perturbed_txn)
     else:
         perturbed_txn = target_txn.copy()
         steps = 0
         pred = model.predict([perturbed_txn])[0]
         ml_prediction = "Fraud" if pred == 1 else "Safe"
+        distortion_stats = analyze_perturbation(target_txn, perturbed_txn)
         
     # Save perturbed transaction for C++ engine
     np.savetxt(EVASION_CSV, perturbed_txn.reshape(1, -1), delimiter=",")
@@ -223,7 +236,9 @@ def evaluate_transaction(req: EvasionRequest):
         "ml_prediction": ml_prediction,
         "advguard_blocked": blocked,
         "cpp_report": cpp_output,
-        "scenario": req.scenario
+        "scenario": req.scenario,
+        "attack_method": attack_label,
+        "distortion_stats": distortion_stats
     }
 
     if blocked:
@@ -232,7 +247,9 @@ def evaluate_transaction(req: EvasionRequest):
             "steps_taken": steps,
             "ml_prediction": ml_prediction,
             "cpp_report": cpp_output,
-            "scenario": req.scenario
+            "scenario": req.scenario,
+            "attack_method": attack_label,
+            "distortion_stats": distortion_stats
         })
 
         def dispatch():

@@ -61,6 +61,8 @@ class IncidentManager:
             "status": "active",
             "cpp_report": cpp_report,
             "scenario": data.get("scenario", "adversarial"),
+            "attack_method": data.get("attack_method", "FGSM"),
+            "distortion_stats": data.get("distortion_stats", {})
         }
 
         heapq.heappush(self._heap, (-threat_score, incident_id, incident))

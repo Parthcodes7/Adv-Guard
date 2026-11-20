@@ -215,8 +215,9 @@ const FraudGauge = ({ ratio }) => {
 
 // ── main app ──────────────────────────────────────────────────────────────────
 function App() {
-  const [epsilon, setEpsilon] = useState(0.1)
+  const [epsilon, setEpsilon] = useState(0.05)
   const [scenario, setScenario] = useState('adversarial')
+  const [attackMethod, setAttackMethod] = useState('fgsm')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [parsed, setParsed] = useState(null)
@@ -236,7 +237,7 @@ function App() {
       const response = await fetch('http://localhost:8000/api/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ epsilon, scenario })
+        body: JSON.stringify({ epsilon, scenario, attack_method: attackMethod })
       })
       if (!response.ok) {
         const err = await response.json()
@@ -386,6 +387,57 @@ function App() {
           </div>
 
           {scenario === 'adversarial' && (
+            <div className="control-group" style={{ gridColumn: '1 / -1' }}>
+              <label className="ctrl-label">Adversarial Evasion Strategy (Attack Algorithm)</label>
+              <div className="attack-methods-grid">
+                <div
+                  className={`attack-card ${attackMethod === 'fgsm' ? 'attack-active' : ''}`}
+                  onClick={() => setAttackMethod('fgsm')}
+                >
+                  <div className="attack-header">
+                    <span className="attack-icon">⚡</span>
+                    <strong>FGSM (Fast Gradient Sign)</strong>
+                  </div>
+                  <p>Follows the loss gradient ∇_x L in steepest descent direction to fool the model in 1-2 iterations.</p>
+                </div>
+
+                <div
+                  className={`attack-card ${attackMethod === 'boundary' ? 'attack-active' : ''}`}
+                  onClick={() => setAttackMethod('boundary')}
+                >
+                  <div className="attack-header">
+                    <span className="attack-icon">🎯</span>
+                    <strong>Decision Boundary Probing</strong>
+                  </div>
+                  <p>Performs binary search between fraud and safe centroids. Finds the minimal L2 distortion threshold.</p>
+                </div>
+
+                <div
+                  className={`attack-card ${attackMethod === 'jsma' ? 'attack-active' : ''}`}
+                  onClick={() => setAttackMethod('jsma')}
+                >
+                  <div className="attack-header">
+                    <span className="attack-icon">🔬</span>
+                    <strong>Sparse Saliency (JSMA)</strong>
+                  </div>
+                  <p>Jacobian sensitivity search. Manipulates only the top 3-4 features, leaving 85%+ features untouched.</p>
+                </div>
+
+                <div
+                  className={`attack-card ${attackMethod === 'heuristic' ? 'attack-active' : ''}`}
+                  onClick={() => setAttackMethod('heuristic')}
+                >
+                  <div className="attack-header">
+                    <span className="attack-icon">🧭</span>
+                    <strong>Directional Baseline</strong>
+                  </div>
+                  <p>Simple coordinate-wise sign drift. Slower convergence, higher cumulative distortion.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {scenario === 'adversarial' && (
             <div className="control-group">
               <label className="ctrl-label">
                 Perturbation Strength &nbsp;<span className="epsilon-val">ε = {epsilon}</span>
@@ -447,6 +499,42 @@ function App() {
             </div>
             <p className="card-footnote">💡 Hover any box to see the exact original → perturbed values and Δ change.</p>
           </div>
+
+          {/* Adversarial Distortion Analytics */}
+          {result?.distortion_stats && (
+            <div className="glass-card result-card" style={{ gridColumn: '1 / -1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+                <div>
+                  <h3 style={{ margin: 0 }}>🎯 Adversarial Attack Metrics &amp; Feature Vulnerability</h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Algorithm Executed: <strong style={{ color: 'var(--primary)' }}>{result.attack_method || 'FGSM'}</strong> &bull; Convergence: {steps} steps
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span className="distortion-pill">L₂ Norm: <strong>{result.distortion_stats.l2}</strong></span>
+                  <span className="distortion-pill">L_∞ Chebyshev: <strong>{result.distortion_stats.linf}</strong></span>
+                  <span className="distortion-pill">Sparsity: <strong>{result.distortion_stats.changed_count}/{result.distortion_stats.total_features}</strong></span>
+                </div>
+              </div>
+
+              {result.distortion_stats.top_features?.length > 0 && (
+                <div>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>TOP EXPLOITED FEATURES (Highest Sensitivity Shift):</span>
+                  <div className="top-features-list">
+                    {result.distortion_stats.top_features.map((tf, i) => (
+                      <div key={i} className="top-feature-badge">
+                        <span className="tf-name">{tf.name}</span>
+                        <span className={`tf-delta ${tf.delta > 0 ? 'delta-pos' : 'delta-neg'}`}>
+                          {tf.delta > 0 ? `+${tf.delta}` : tf.delta}
+                        </span>
+                        <span className="tf-range">{tf.original} → {tf.perturbed}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* KD-Tree Neighbors */}
           <div className="glass-card result-card">
