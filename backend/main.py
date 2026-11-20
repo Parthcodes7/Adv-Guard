@@ -10,6 +10,7 @@ import joblib
 import threading
 from scipy.spatial import KDTree
 from notifications import incident_manager, notification_config, email_dispatcher, webhook_dispatcher
+from benchmark import get_benchmark_results
 
 app = FastAPI()
 
@@ -164,6 +165,14 @@ def preview_email():
         with open(preview_path, "r", encoding="utf-8") as f:
             return f.read()
     return "<h3>No email generated yet. Run a test email or simulate an attack.</h3>"
+
+@app.get("/api/benchmark")
+def get_benchmark():
+    return get_benchmark_results(force_rerun=False)
+
+@app.post("/api/benchmark/run")
+def run_benchmark():
+    return get_benchmark_results(force_rerun=True)
 
 @app.get("/api/ping")
 def ping():

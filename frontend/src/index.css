@@ -1514,3 +1514,312 @@ code {
 .toggle-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
 .toggle-switch.on::after { transform: translateX(20px); }
 .settings-input { width: 100%; background: var(--bg-secondary, #1a1a2e); border: 1px solid var(--border-medium, #333); border-radius: 8px; padding: 8px 12px; color: var(--text-main, #fff); font-size: 0.85rem; margin-top: 0.4rem; box-sizing: border-box; }
+
+/* ─── Top-Level Tab Navigation ──────────────────────────────────── */
+.tab-nav {
+  display: flex;
+  gap: 0.75rem;
+  margin: 1.25rem 0 1.75rem;
+  border-bottom: 1px solid var(--border-medium);
+  padding-bottom: 0.75rem;
+}
+
+.tab-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+  padding: 0.65rem 1.4rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tab-btn:hover {
+  color: var(--text-main);
+  border-color: var(--primary-border);
+  background: var(--primary-subtle);
+}
+
+.tab-btn.tab-active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
+}
+
+/* ─── Benchmark View Styling ────────────────────────────────────── */
+.benchmark-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: fadeIn 0.3s ease;
+}
+
+.benchmark-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.benchmark-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--text-main);
+}
+
+.benchmark-subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  max-width: 720px;
+  line-height: 1.5;
+}
+
+.benchmark-ts-badge {
+  font-size: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  color: var(--text-muted);
+}
+
+/* KPI Cards Grid */
+.benchmark-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.kpi-card {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+}
+
+.kpi-icon {
+  font-size: 1.4rem;
+  margin-bottom: 0.35rem;
+}
+
+.kpi-value {
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.kpi-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-top: 0.35rem;
+}
+
+.kpi-subtext {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+  line-height: 1.35;
+}
+
+/* Main Split Grid (Chart + Table) */
+.benchmark-main-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 1024px) {
+  .benchmark-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chart-card, .table-card {
+  padding: 1.4rem;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.card-header-row h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-main);
+}
+
+.chart-legend-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-bf { background: #ef4444; }
+.dot-kd { background: #06b6d4; }
+.dot-lsh { background: #a855f7; }
+.dot-lru { background: #22c55e; }
+
+.chart-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 10px;
+  padding: 0.5rem;
+}
+
+.benchmark-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.active-point-callout {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.8rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.speedup-badge {
+  background: rgba(14, 165, 233, 0.15);
+  color: var(--primary);
+  border: 1px solid rgba(14, 165, 233, 0.3);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Benchmark Table */
+.benchmark-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.benchmark-table th {
+  padding: 0.75rem 0.6rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-medium);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.benchmark-table td {
+  padding: 0.75rem 0.6rem;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-main);
+}
+
+.benchmark-table tr:hover, .benchmark-table tr.row-highlight {
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.speedup-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+
+.pill-high { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); }
+.pill-med { background: rgba(14, 165, 233, 0.15); color: #0ea5e9; border: 1px solid rgba(14, 165, 233, 0.3); }
+.pill-low { background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
+
+/* Academic Viva Proof Card */
+.viva-proof-card {
+  padding: 1.5rem;
+  border-radius: 14px;
+  border-left: 4px solid var(--primary);
+}
+
+.viva-proof-card h3 {
+  margin: 0 0 1rem;
+  font-size: 1.15rem;
+  color: var(--text-main);
+}
+
+.viva-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.viva-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: 10px;
+  padding: 1.1rem;
+}
+
+.viva-box h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--primary);
+}
+
+.viva-box p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.viva-formula {
+  display: inline-block;
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #38bdf8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  margin: 4px 0;
+}

@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import './index.css'
 import NotificationCenter, { AlertBell, useIncidentPoller } from './NotificationCenter'
+import BenchmarkView from './BenchmarkView'
 
 // ── Concept Glossary data ─────────────────────────────────────────────────────
 const CONCEPTS = [
@@ -222,6 +223,7 @@ function App() {
   const [error, setError] = useState(null)
   const [phase, setPhase] = useState(0)
   const [showNotifCenter, setShowNotifCenter] = useState(false)
+  const [activeTab, setActiveTab] = useState('lab')
   const resultsRef = useRef(null)
 
   const { incidents, unreadCount, addLocalIncident } = useIncidentPoller()
@@ -275,10 +277,30 @@ function App() {
         </div>
       </header>
 
+      {/* Tab Navigation */}
+      <div className="tab-nav">
+        <button
+          className={`tab-btn ${activeTab === 'lab' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('lab')}
+        >
+          ⚡ Threat Simulation Lab &amp; SOC
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'benchmarks' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('benchmarks')}
+        >
+          📊 DSA Algorithmic Benchmarks &amp; Complexity O(log N)
+        </button>
+      </div>
+
       {/* Notification Center overlay */}
       {showNotifCenter && <NotificationCenter incidents={incidents} />}
 
-      {/* Verdict Banner */}
+      {activeTab === 'benchmarks' && <BenchmarkView />}
+
+      {activeTab === 'lab' && (
+        <>
+          {/* Verdict Banner */}
       {result && (
         <div className={`verdict-banner ${blocked ? 'banner-blocked' : 'banner-allowed'}`}>
           <div className="verdict-icon">{blocked ? '🛡️' : '✅'}</div>
@@ -575,6 +597,8 @@ function App() {
           <div className="idle-sub">Configure ε above and launch the attack to see the full pipeline in action.</div>
           <div className="idle-hint">Try different ε values to see how attack strength affects whether AdvGuard catches it.</div>
         </div>
+      )}
+        </>
       )}
 
       <footer className="app-footer">
