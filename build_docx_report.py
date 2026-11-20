@@ -31,6 +31,14 @@ def set_cell_margins(cell, top=100, bottom=100, left=150, right=150):
         tcMar.append(node)
     tcPr.append(tcMar)
 
+def add_heading_black(doc, text, level=1):
+    h = doc.add_heading(text, level=level)
+    for run in h.runs:
+        run.font.name = 'Calibri'
+        run.font.color.rgb = RGBColor(0, 0, 0)
+        run.bold = True
+    return h
+
 def create_report():
     doc = Document()
 
@@ -41,12 +49,19 @@ def create_report():
         section.left_margin = Inches(1.0)
         section.right_margin = Inches(1.0)
 
-    # Styles setup
+    # Styles setup - Academic Black
     style_normal = doc.styles['Normal']
     font = style_normal.font
     font.name = 'Calibri'
     font.size = Pt(11)
-    font.color.rgb = RGBColor(40, 44, 52)
+    font.color.rgb = RGBColor(0, 0, 0)
+
+    for h_name in ['Heading 1', 'Heading 2', 'Heading 3']:
+        if h_name in doc.styles:
+            h_st = doc.styles[h_name]
+            h_st.font.name = 'Calibri'
+            h_st.font.color.rgb = RGBColor(0, 0, 0)
+            h_st.font.bold = True
 
     # ==========================================
     # SECTION 1: TITLE PAGE
@@ -56,7 +71,7 @@ def create_report():
     r_inst = p_inst.add_run("DEPARTMENT OF COMPUTER SCIENCE AND ENGINEERING\nARTIFICIAL INTELLIGENCE & MACHINE LEARNING")
     r_inst.bold = True
     r_inst.font.size = Pt(13)
-    r_inst.font.color.rgb = RGBColor(30, 41, 59)
+    r_inst.font.color.rgb = RGBColor(0, 0, 0)
 
     assets_dir = r"E:\DS-CP\AdvGuard\report_assets"
     logo_path = os.path.join(assets_dir, "image1.png")
@@ -74,14 +89,14 @@ def create_report():
     r_title = p_title.add_run("AdvGuard: Geometric Evasion Defense & Spatial Threat Forensics for Financial ML Security")
     r_title.bold = True
     r_title.font.size = Pt(20)
-    r_title.font.color.rgb = RGBColor(14, 116, 144) # Deep Cyan
+    r_title.font.color.rgb = RGBColor(0, 0, 0) # Academic Solid Black
 
     p_sub = doc.add_paragraph()
     p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_sub = p_sub.add_run("A High-Speed C++ Data Structures & Spatial Safety Net for Adversarial ML Vulnerabilities")
     r_sub.italic = True
     r_sub.font.size = Pt(12)
-    r_sub.font.color.rgb = RGBColor(100, 116, 139)
+    r_sub.font.color.rgb = RGBColor(0, 0, 0)
 
     p_type = doc.add_paragraph()
     p_type.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -89,12 +104,13 @@ def create_report():
     r_type = p_type.add_run("DATA STRUCTURES COURSE PROJECT REPORT (DS-CP)")
     r_type.bold = True
     r_type.font.size = Pt(12)
-    r_type.font.color.rgb = RGBColor(30, 41, 59)
+    r_type.font.color.rgb = RGBColor(0, 0, 0)
 
     p_div = doc.add_paragraph()
     p_div.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_div = p_div.add_run("Class: CSE-AIML-D  |  Group No: 09  |  Academic Year: 2026")
     r_div.font.size = Pt(11)
+    r_div.font.color.rgb = RGBColor(0, 0, 0)
 
     p_meta_space = doc.add_paragraph()
     p_meta_space.paragraph_format.space_before = Pt(24)
@@ -130,7 +146,7 @@ def create_report():
     # ==========================================
     # SECTION 2: ABSTRACT
     # ==========================================
-    h_abs = doc.add_heading("2. Abstract", level=1)
+    h_abs = add_heading_black(doc, "2. Abstract", level=1)
     h_abs.paragraph_format.space_before = Pt(12)
 
     p_abs1 = doc.add_paragraph(
@@ -170,7 +186,7 @@ def create_report():
     # ==========================================
     # SECTION 3: TABLE OF CONTENTS
     # ==========================================
-    doc.add_heading("3. Table of Contents", level=1)
+    add_heading_black(doc, "3. Table of Contents", level=1)
     
     toc_data = [
         ("1. Title Page", "1"),
@@ -230,9 +246,9 @@ def create_report():
     # ==========================================
     # SECTION 4: INTRODUCTION
     # ==========================================
-    doc.add_heading("4. Introduction", level=1)
+    add_heading_black(doc, "4. Introduction", level=1)
     
-    doc.add_heading("4.1 Background & Motivation", level=2)
+    add_heading_black(doc, "4.1 Background & Motivation", level=2)
     doc.add_paragraph(
         "Credit card fraud detection is one of the most critical applications of modern applied artificial intelligence. "
         "Global payment processors, retail banks, and electronic clearinghouses handle billions of financial transactions daily, "
@@ -243,7 +259,7 @@ def create_report():
         "and area-under-the-curve (AUC) metrics upwards of 99.5%."
     )
 
-    doc.add_heading("4.2 The Threat Model: Adversarial Evasion in Financial ML", level=2)
+    add_heading_black(doc, "4.2 The Threat Model: Adversarial Evasion in Financial ML", level=2)
     doc.add_paragraph(
         "Despite their exceptional nominal metrics, standard ML classifiers evaluate inputs locally against rigid, static decision boundaries. "
         "In adversarial machine learning, an 'Evasion Attack' (or adversarial perturbation) occurs at inference time: an adversary with black-box or "
@@ -254,7 +270,7 @@ def create_report():
         "unauthorized transactions to bypass automated fraud defenses completely."
     )
 
-    doc.add_heading("4.3 The AdvGuard Paradigm: Spatial Geometric Verification", level=2)
+    add_heading_black(doc, "4.3 The AdvGuard Paradigm: Spatial Geometric Verification", level=2)
     doc.add_paragraph(
         "AdvGuard introduces a paradigm shift in financial cyber-defense. Rather than attempting to fix the machine learning model via expensive, "
         "brittle adversarial retraining (which degrades clean classification accuracy), AdvGuard introduces an independent geometric safety net. "
@@ -268,9 +284,9 @@ def create_report():
     # ==========================================
     # SECTION 5: OBJECTIVES & SCOPE
     # ==========================================
-    doc.add_heading("5. Objectives & Scope", level=1)
+    add_heading_black(doc, "5. Objectives & Scope", level=1)
     
-    doc.add_heading("5.1 Primary Objectives", level=2)
+    add_heading_black(doc, "5.1 Primary Objectives", level=2)
     objectives = [
         ("Expose Critical ML Vulnerabilities", "Mathematically demonstrate how production-grade Random Forest and Neural Network fraud classifiers can be completely compromised by subtle gradient-guided evasion attacks (FGSM, Boundary Probing, JSMA)."),
         ("Architect a High-Speed Geometric Defense", "Develop AdvGuard, a secondary spatial validation engine in C++ that catches evasions by validating spatial neighborhood density rather than relying on model decision boundaries."),
@@ -284,7 +300,7 @@ def create_report():
         r.bold = True
         p.add_run(desc)
 
-    doc.add_heading("5.2 Project Scope & Academic Constraints", level=2)
+    add_heading_black(doc, "5.2 Project Scope & Academic Constraints", level=2)
     doc.add_paragraph(
         "To rigorously satisfy the pedagogical constraints of advanced Data Structures and Algorithms (DSA), AdvGuard adheres to strict academic boundaries:\n"
         "1. Scratch Implementation: The core geometric engine is written 100% from scratch in pure C++17. The use of pre-packaged spatial libraries "
@@ -298,9 +314,9 @@ def create_report():
     # ==========================================
     # SECTION 6: SYSTEM DESIGN & ARCHITECTURE
     # ==========================================
-    doc.add_heading("6. System Design or Architecture", level=1)
+    add_heading_black(doc, "6. System Design or Architecture", level=1)
     
-    doc.add_heading("6.1 High-Level Dual-Tier Architecture", level=2)
+    add_heading_black(doc, "6.1 High-Level Dual-Tier Architecture", level=2)
     doc.add_paragraph(
         "The AdvGuard system architecture employs a decoupled dual-tier defense topology. Tier 1 consists of the traditional Machine Learning "
         "inference pipeline (Python Random Forest), responsible for rapid nominal classification. Tier 2 consists of the AdvGuard C++ Geometric "
@@ -318,7 +334,7 @@ def create_report():
         r_cap.italic = True
         r_cap.font.size = Pt(9.5)
 
-    doc.add_heading("6.2 End-to-End Execution Methodology", level=2)
+    add_heading_black(doc, "6.2 End-to-End Execution Methodology", level=2)
     doc.add_paragraph(
         "The methodology proceeds through four distinct operational phases: (1) Historical Ingestion & Spatial Tree Construction, "
         "(2) Adversarial Attack Synthesis, (3) Real-Time Geometric KD-Tree Verification & LSH Filtering, and (4) Autonomous Forensic Incident Triage."
@@ -335,7 +351,7 @@ def create_report():
         r_cap2.italic = True
         r_cap2.font.size = Pt(9.5)
 
-    doc.add_heading("6.3 Entity-Relationship & Algorithmic Data Flow", level=2)
+    add_heading_black(doc, "6.3 Entity-Relationship & Algorithmic Data Flow", level=2)
     doc.add_paragraph(
         "The underlying data entities and their relational attributes are structured around high-speed memory lookup and forensic traceability:\n"
         "• HistoricalTransaction (ID, Features[29], Label {0=Safe, 1=Fraud}, LSH_Bucket_ID)\n"
@@ -350,14 +366,14 @@ def create_report():
     # ==========================================
     # SECTION 7: IMPLEMENTATION TECHNOLOGY
     # ==========================================
-    doc.add_heading("7. Implementation technology", level=1)
+    add_heading_black(doc, "7. Implementation technology", level=1)
     
     doc.add_paragraph(
         "AdvGuard integrates low-level algorithmic efficiency with a modern, reactive full-stack web architecture. "
         "Below is an exhaustive breakdown of the core data structures, algorithms, and frameworks employed across the system."
     )
 
-    doc.add_heading("7.1 Custom K-Dimensional Tree (KD-Tree) in C++", level=2)
+    add_heading_black(doc, "7.1 Custom K-Dimensional Tree (KD-Tree) in C++", level=2)
     doc.add_paragraph(
         "The K-Dimensional Tree is a space-partitioning binary tree used to organize points in a k-dimensional space. "
         "In AdvGuard, each transaction vector has d = 29 continuous features. The tree recursively partitions space by choosing "
@@ -371,7 +387,7 @@ def create_report():
         "reducing expected search complexity from linear O(N · d) to logarithmic O(log N)."
     )
 
-    doc.add_heading("7.2 Max-Heap Priority Queue for Nearest Neighbors", level=2)
+    add_heading_black(doc, "7.2 Max-Heap Priority Queue for Nearest Neighbors", level=2)
     doc.add_paragraph(
         "To track the k = 10 closest historical transactions without sorting the entire dataset, AdvGuard implements a binary Max-Heap. "
         "The heap invariant places the neighbor with the largest Euclidean distance at the root. When a new neighbor candidate is found:\n"
@@ -381,7 +397,7 @@ def create_report():
         "This guarantees that the worst-case space complexity is strictly O(k), and neighbor tracking introduces negligible overhead."
     )
 
-    doc.add_heading("7.3 Locality-Sensitive Hashing (LSH) Fast-Path", level=2)
+    add_heading_black(doc, "7.3 Locality-Sensitive Hashing (LSH) Fast-Path", level=2)
     doc.add_paragraph(
         "For known zero-day attack templates, AdvGuard implements Random Projection Locality-Sensitive Hashing (LSH). "
         "A family of random Gaussian projection vectors {r_1, r_2, ..., r_m} partitions the 29-dimensional space into binary hash buckets: "
@@ -389,7 +405,7 @@ def create_report():
         "bypassing the KD-Tree entirely for ultra-low latency critical triage."
     )
 
-    doc.add_heading("7.4 Threat Generation Suite (FGSM, Boundary Probing, JSMA)", level=2)
+    add_heading_black(doc, "7.4 Threat Generation Suite (FGSM, Boundary Probing, JSMA)", level=2)
     doc.add_paragraph(
         "AdvGuard includes a full suite of mathematical adversarial evasion attack generators in Python:\n"
         "• Fast Gradient Sign Method (FGSM): Calculates loss gradients with respect to input features and perturbs in direction of gradient sign: x_adv = x + ε · sign(∇_x J(θ, x, y)).\n"
@@ -397,7 +413,7 @@ def create_report():
         "• Sparse Saliency (JSMA): Selectively perturbs only the top 3 most influential features while leaving 26 features untouched to minimize L0 distortion."
     )
 
-    doc.add_heading("7.5 Multi-Channel Notification Studio & Handset Simulator", level=2)
+    add_heading_black(doc, "7.5 Multi-Channel Notification Studio & Handset Simulator", level=2)
     doc.add_paragraph(
         "A novel contribution of this project is the interactive Notification Creator Studio and on-screen Smartphone Simulator:\n"
         "• Push Notifications: Zero-config real-time push via ntfy.sh (ntfy.sh/advguard-alerts) delivering instant alerts to phones and browsers without account setup.\n"
@@ -411,14 +427,14 @@ def create_report():
     # ==========================================
     # SECTION 8: RESULTS & OUTPUT
     # ==========================================
-    doc.add_heading("8. Results & Output", level=1)
+    add_heading_black(doc, "8. Results & Output", level=1)
     
     doc.add_paragraph(
         "Extensive empirical evaluations were conducted on credit card fraud datasets to measure algorithmic complexity, "
         "adversarial attack dynamics, geometric override efficacy, and full-stack system responsiveness."
     )
 
-    doc.add_heading("8.1 Algorithmic Time Complexity Benchmarking", level=2)
+    add_heading_black(doc, "8.1 Algorithmic Time Complexity Benchmarking", level=2)
     doc.add_paragraph(
         "Figure 8.1 illustrates the benchmark query latency comparing AdvGuard's custom C++ KD-Tree against a naive linear brute-force scan "
         "and LSH hash lookup across dataset scales ranging from N = 100 to N = 1,000,000 transactions."
@@ -440,7 +456,7 @@ def create_report():
         "In contrast, AdvGuard's C++ KD-Tree resolves 10-NN queries in just 56.8 μs (0.056 ms)—a 1,633x speedup—while the LSH fast-path resolves in 1.45 μs."
     )
 
-    doc.add_heading("8.2 Adversarial Perturbation & Distortion Analysis", level=2)
+    add_heading_black(doc, "8.2 Adversarial Perturbation & Distortion Analysis", level=2)
     doc.add_paragraph(
         "Figure 8.2 charts the perturbation distortion norms (L-infinity, L2, L1) across 15 optimization iterations. "
         "The vulnerable Random Forest model is completely fooled at iteration 9 with an imperceptible L-infinity shift of only 0.05."
@@ -457,7 +473,7 @@ def create_report():
         r_cf2.italic = True
         r_cf2.font.size = Pt(9.5)
 
-    doc.add_heading("8.3 Spatial Neighborhood Override & Boundary Separation", level=2)
+    add_heading_black(doc, "8.3 Spatial Neighborhood Override & Boundary Separation", level=2)
     doc.add_paragraph(
         "Figure 8.3 visualizes the 2D spatial projection of legitimate vs fraudulent clusters. While the attacker successfully "
         "crosses the vulnerable linear decision boundary, the transaction remains engulfed inside the historical fraud sphere, "
@@ -475,7 +491,7 @@ def create_report():
         r_cf3.italic = True
         r_cf3.font.size = Pt(9.5)
 
-    doc.add_heading("8.4 Security Defense Efficacy & Throughput Comparison", level=2)
+    add_heading_black(doc, "8.4 Security Defense Efficacy & Throughput Comparison", level=2)
     doc.add_paragraph(
         "Table 8.1 and Figure 8.4 compare detection rates between the baseline ML model and the AdvGuard dual-tier architecture."
     )
@@ -517,7 +533,7 @@ def create_report():
         r_cf4.italic = True
         r_cf4.font.size = Pt(9.5)
 
-    doc.add_heading("8.5 Full-Stack User Interface & Live System Screenshots", level=2)
+    add_heading_black(doc, "8.5 Full-Stack User Interface & Live System Screenshots", level=2)
     doc.add_paragraph(
         "Figure 8.5 captures the live AdvGuard interactive web interface, showing the real-time attack simulation pipeline, "
         "the C++ KD-Tree forensic output, the plain-English forensic dossier, and the Notification Studio."
@@ -539,9 +555,9 @@ def create_report():
     # ==========================================
     # SECTION 9: CONCLUSION & FUTURE SCOPE
     # ==========================================
-    doc.add_heading("9. Conclusion and Future Scope", level=1)
+    add_heading_black(doc, "9. Conclusion and Future Scope", level=1)
     
-    doc.add_heading("9.1 Project Summary & Academic Contributions", level=2)
+    add_heading_black(doc, "9.1 Project Summary & Academic Contributions", level=2)
     doc.add_paragraph(
         "AdvGuard successfully demonstrates that classical Data Structures and Algorithms (DSA) provide an exceptionally powerful, "
         "computationally efficient solution to modern Artificial Intelligence vulnerabilities. The primary achievements of this project include:\n"
@@ -555,7 +571,7 @@ def create_report():
         "and a zero-config Notification Studio with phone push (ntfy.sh) and an interactive smartphone SMS simulator."
     )
 
-    doc.add_heading("9.2 Future Scope & Industrial Extensions", level=2)
+    add_heading_black(doc, "9.2 Future Scope & Industrial Extensions", level=2)
     doc.add_paragraph(
         "1. Dynamic Data Streams & Self-Balancing KD-Trees: Transitioning the C++ engine from pre-indexed historical datasets to live transaction streams. "
         "This entails implementing dynamic insertion and automatic rebalancing algorithms (e.g., Scapegoat trees or randomized self-balancing KD-Trees) "
@@ -569,7 +585,7 @@ def create_report():
     # ==========================================
     # SECTION 10: REFERENCES
     # ==========================================
-    doc.add_heading("10. References", level=1)
+    add_heading_black(doc, "10. References", level=1)
     refs = [
         "[1] Bentley, J. L. (1975). 'Multidimensional binary search trees used for associative searching.' Communications of the ACM, 18(9), 509-517.",
         "[2] Goodfellow, I. J., Shlens, J., & Szegedy, C. (2014). 'Explaining and harnessing adversarial examples.' arXiv preprint arXiv:1412.6572.",
@@ -592,9 +608,9 @@ def create_report():
     # ==========================================
     # SECTION 11: APPENDIX
     # ==========================================
-    doc.add_heading("11. Appendix", level=1)
+    add_heading_black(doc, "11. Appendix", level=1)
     
-    doc.add_heading("11.1 Core C++ KD-Tree Engine Implementation", level=2)
+    add_heading_black(doc, "11.1 Core C++ KD-Tree Engine Implementation", level=2)
     doc.add_paragraph("Below is the production C++17 implementation of the custom KD-Tree with recursive max-variance spatial partitioning and heap-pruned k-NN traversal:")
 
     code_cpp = (
@@ -667,7 +683,7 @@ def create_report():
     r_code.font.size = Pt(8.5)
     p_code.paragraph_format.line_spacing = 1.05
 
-    doc.add_heading("11.2 FGSM Attack Pipeline Implementation", level=2)
+    add_heading_black(doc, "11.2 FGSM Attack Pipeline Implementation", level=2)
     doc.add_paragraph("Below is the Python implementation of the Fast Gradient Sign Method (FGSM) and Decision Boundary Probing attack generators:")
 
     code_py = (
