@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import './index.css'
 import NotificationCenter, { AlertBell, useIncidentPoller } from './NotificationCenter'
 import BenchmarkView from './BenchmarkView'
+import NotificationStudio from './NotificationStudio'
 
 // ── Concept Glossary data ─────────────────────────────────────────────────────
 const CONCEPTS = [
@@ -292,12 +293,19 @@ function App() {
         >
           📊 DSA Algorithmic Benchmarks &amp; Complexity O(log N)
         </button>
+        <button
+          className={`tab-btn ${activeTab === 'notifications' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('notifications')}
+        >
+          🔔 Notification Studio &amp; SMS Simulator
+        </button>
       </div>
 
       {/* Notification Center overlay */}
       {showNotifCenter && <NotificationCenter incidents={incidents} />}
 
       {activeTab === 'benchmarks' && <BenchmarkView />}
+      {activeTab === 'notifications' && <NotificationStudio incidents={incidents} />}
 
       {activeTab === 'lab' && (
         <>

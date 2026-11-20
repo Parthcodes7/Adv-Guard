@@ -338,11 +338,74 @@ class WebhookDispatcher:
 
 
 # ---------------------------------------------------------------------------
-# D. NotificationConfig — loads from environment with safe defaults
+# D. NtfyDispatcher — Zero-Config Instant Mobile Push & Email Delivery
+# ---------------------------------------------------------------------------
+
+class NtfyDispatcher:
+    def send_notification(self, topic: str = "advguard-alerts", title: str = "AdvGuard Security Alert",
+                          message: str = "", priority: str = "urgent", tags: str = "shield,warning",
+                          click_url: str = None, email: str = None) -> tuple:
+        """
+        Sends an instant push notification via ntfy.sh (zero-config, works on all devices).
+        If email is provided, ntfy also forwards an email to that address!
+        """
+        clean_topic = re.sub(r'[^a-zA-Z0-9_-]', '', topic.strip()) or "advguard-alerts"
+        url = f"https://ntfy.sh/{clean_topic}"
+        headers = {
+            "Title": title,
+            "Priority": priority,
+            "Tags": tags,
+        }
+        if click_url:
+            headers["Click"] = click_url
+        if email and "@" in email:
+            headers["Email"] = email.strip()
+
+        try:
+            resp = requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=8)
+            if resp.status_code == 200:
+                data = resp.json()
+                return True, {
+                    "id": data.get("id"),
+                    "topic": clean_topic,
+                    "view_url": f"https://ntfy.sh/{clean_topic}",
+                    "message": "Notification dispatched successfully!",
+                    "email_forwarded": bool(email and "@" in email)
+                }
+            return False, {"error": f"HTTP {resp.status_code}: {resp.text}"}
+        except Exception as e:
+            return False, {"error": str(e)}
+
+    def send_incident_alert(self, incident: dict, topic: str = "advguard-alerts", email: str = None) -> bool:
+        severity = incident.get("severity", "CRITICAL")
+        threat_score = incident.get("threat_score", 0.0)
+        attack_method = incident.get("attack_method", "FGSM")
+        
+        title = f"🚨 AdvGuard {severity} — {attack_method} Intercepted"
+        body = (
+            f"Adversarial Evasion Blocked by AdvGuard KD-Tree!\n"
+            f"• Incident ID: #{incident.get('id', 'N/A')}\n"
+            f"• Threat Score: {threat_score:.4f}\n"
+            f"• Attack: {attack_method} (ε={incident.get('epsilon', 0.05)})\n"
+            f"• Neighborhood Fraud Ratio: {incident.get('fraud_ratio', 0):.1%}\n"
+            f"• ML Model Verdict: {incident.get('ml_prediction', 'Safe (Fooled)')}\n"
+            f"• AdvGuard Action: OVERRIDDEN & BLOCKED"
+        )
+        tags = "warning,shield" if severity == "CRITICAL" else "information_source,shield"
+        prio = "urgent" if severity == "CRITICAL" else "high"
+        
+        ok, res = self.send_notification(topic=topic, title=title, message=body, priority=prio, tags=tags, email=email)
+        return ok
+
+
+# ---------------------------------------------------------------------------
+# E. NotificationConfig — loads from environment with safe defaults
 # ---------------------------------------------------------------------------
 
 @dataclass
 class NotificationConfig:
+    ntfy_enabled: bool = field(default_factory=lambda: True)
+    ntfy_topic: str = field(default_factory=lambda: "advguard-alerts")
     email_enabled: bool = field(default_factory=lambda: os.getenv("EMAIL_ENABLED", "false").lower() == "true")
     smtp_host: str = field(default_factory=lambda: os.getenv("SMTP_HOST", "smtp.gmail.com"))
     smtp_port: int = field(default_factory=lambda: int(os.getenv("SMTP_PORT", "465")))
@@ -357,7 +420,7 @@ class NotificationConfig:
 
 
 # ---------------------------------------------------------------------------
-# E. Global instances
+# F. Global instances
 # ---------------------------------------------------------------------------
 
 incident_manager = IncidentManager()
@@ -372,3 +435,4 @@ email_dispatcher = EmailDispatcher(
 )
 
 webhook_dispatcher = WebhookDispatcher()
+ntfy_dispatcher = NtfyDispatcher()
