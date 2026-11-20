@@ -12,6 +12,7 @@ from scipy.spatial import KDTree
 from notifications import incident_manager, notification_config, email_dispatcher, webhook_dispatcher
 from benchmark import get_benchmark_results
 from attacks import fgsm_attack, boundary_attack, jsma_sparse_attack, heuristic_attack, analyze_perturbation
+from forensics import generate_forensic_brief
 
 app = FastAPI()
 
@@ -86,6 +87,15 @@ def handle_action(incident_id: str, body: dict):
     action = body.get("action")
     success = incident_manager.update_action(incident_id, action)
     return {"success": success}
+
+@app.get("/api/incidents/{incident_id}/forensics")
+def get_incident_forensics(incident_id: str):
+    incidents = incident_manager.get_incidents()
+    for inc in incidents:
+        if inc.get("id") == incident_id:
+            brief = inc.get("forensic_brief") or generate_forensic_brief(inc)
+            return {"success": True, "forensics": brief}
+    raise HTTPException(status_code=404, detail="Incident not found")
 
 @app.get("/api/notifications/config")
 def get_config():

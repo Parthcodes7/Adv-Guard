@@ -17,6 +17,7 @@ from email.mime.text import MIMEText
 from typing import Optional
 
 import requests
+from forensics import generate_forensic_brief
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,9 @@ class IncidentManager:
             "attack_method": data.get("attack_method", "FGSM"),
             "distortion_stats": data.get("distortion_stats", {})
         }
+
+        # Autonomous AI Forensic Intelligence Dossier
+        incident["forensic_brief"] = generate_forensic_brief(incident)
 
         heapq.heappush(self._heap, (-threat_score, incident_id, incident))
         self._incidents[incident_id] = incident
@@ -116,6 +120,8 @@ class EmailDispatcher:
             )
 
             cpp_summary = str(incident.get("cpp_report", ""))[:300]
+            brief = incident.get("forensic_brief") or generate_forensic_brief(incident)
+            exec_summary_html = brief.get("executive_summary", "")
 
             html = f"""<!DOCTYPE html>
 <html>
@@ -134,6 +140,15 @@ class EmailDispatcher:
             <p style="margin:4px 0 0;color:rgba(255,255,255,0.8);font-size:13px;">
               Incident #{incident.get('id','N/A')} &bull; {incident.get('timestamp','N/A')} UTC
             </p>
+          </td>
+        </tr>
+        <!-- Autonomous Forensic Intelligence Brief -->
+        <tr>
+          <td style="padding:20px 32px 0;">
+            <div style="background:#0d1117;border:1px solid #30363d;border-left:4px solid {color};border-radius:6px;padding:14px 16px;color:#c9d1d9;font-size:13px;line-height:1.5;">
+              <strong style="color:#58a6ff;font-size:13px;display:block;margin-bottom:6px;">🧠 Autonomous AI Forensic Brief:</strong>
+              {exec_summary_html}
+            </div>
           </td>
         </tr>
         <!-- Body -->
@@ -266,21 +281,24 @@ class WebhookDispatcher:
         try:
             severity = incident.get("severity", "SAFE")
             color = _DISCORD_COLORS.get(severity, 3066993)  # default green for SAFE
+            brief = incident.get("forensic_brief") or generate_forensic_brief(incident)
+            exec_brief_text = brief.get("executive_summary", "")[:350]
+            
             payload = {
-                "username": "AdvGuard",
+                "username": "AdvGuard SOC",
                 "embeds": [{
-                    "title": f"🚨 {severity} — Adversarial Evasion Detected",
-                    "description": f"**Incident ID:** `{incident.get('id', 'N/A')}`",
+                    "title": f"🚨 {severity} — Adversarial Evasion Intercepted",
+                    "description": f"**Incident:** `{incident.get('id', 'N/A')}` | **Attack:** `{incident.get('attack_method', 'FGSM')}`",
                     "color": color,
                     "fields": [
+                        {"name": "🧠 Executive Forensic Advisory", "value": exec_brief_text, "inline": False},
                         {"name": "Severity",      "value": severity,                                     "inline": True},
                         {"name": "Threat Score",  "value": f"`{incident.get('threat_score', 0):.4f}`",   "inline": True},
-                        {"name": "Epsilon",       "value": str(incident.get("epsilon", "N/A")),          "inline": True},
                         {"name": "Fraud Ratio",   "value": f"{incident.get('fraud_ratio', 0):.2%}",      "inline": True},
                         {"name": "ML Prediction", "value": str(incident.get("ml_prediction", "N/A")),   "inline": True},
                         {"name": "Timestamp",     "value": str(incident.get("timestamp", "N/A")),        "inline": False},
                     ],
-                    "footer": {"text": "AdvGuard Detection System"},
+                    "footer": {"text": "AdvGuard FinSec Intelligence Engine"},
                 }]
             }
             resp = requests.post(webhook_url, json=payload, timeout=10)

@@ -50,38 +50,41 @@ def analyze_perturbation(original, perturbed):
         "top_features": top_features
     }
 
-def fgsm_attack(model, fraud_transaction, epsilon=0.05, max_steps=50, delta=1e-4):
+def fgsm_attack(model, fraud_transaction, safe_anchor=None, epsilon=0.05, max_steps=50):
     """
     Fast Gradient Sign Method (FGSM) for tabular models.
     Computes numerical gradient of P(fraud | x) and steps in the direction of steepest descent.
     """
     x = fraud_transaction.copy()
     n_features = len(x)
+    probe_delta = max(0.04, epsilon)
     
     for step in range(max_steps):
-        pred = model.predict([x])[0]
-        if pred == 0:
-            return x, step + 1, True
-            
         # Estimate gradient of fraud probability w.r.t each feature
         grad = np.zeros(n_features)
         curr_prob = model.predict_proba([x])[0][1]
         
         for i in range(n_features):
             x_plus = x.copy()
-            x_plus[i] += delta
+            x_plus[i] += probe_delta
             p_plus = model.predict_proba([x_plus])[0][1]
-            grad[i] = (p_plus - curr_prob) / delta
+            grad[i] = (p_plus - curr_prob) / probe_delta
             
-        if np.all(np.abs(grad) < 1e-6):
-            # Gradient plateau fallback: move toward origin
-            direction = -np.sign(x)
+        if np.all(np.abs(grad) < 1e-5):
+            # Gradient plateau fallback: step along vector toward safe centroid
+            if safe_anchor is not None:
+                direction = np.sign(safe_anchor - x)
+            else:
+                direction = -np.sign(x)
         else:
             # Gradient descent: step in direction that decreases fraud probability
             direction = -np.sign(grad)
             
         x += epsilon * direction
         
+        if model.predict([x])[0] == 0:
+            return x, step + 1, True
+            
     final_pred = model.predict([x])[0]
     return x, max_steps, (final_pred == 0)
 
@@ -110,11 +113,13 @@ def boundary_attack(model, fraud_transaction, safe_anchor, max_iterations=30):
             
     # Point lying just across the boundary into the safe classification space
     boundary_sample = (1.0 - best_alpha) * fraud_transaction + best_alpha * safe_anchor
+    if np.allclose(boundary_sample, fraud_transaction, atol=1e-5):
+        boundary_sample += 0.01 * (safe_anchor - fraud_transaction)
     final_pred = model.predict([boundary_sample])[0]
     
     return boundary_sample, max_iterations, (final_pred == 0)
 
-def jsma_sparse_attack(model, fraud_transaction, epsilon=0.08, max_features=4, delta=1e-4):
+def jsma_sparse_attack(model, fraud_transaction, safe_anchor=None, epsilon=0.08, max_features=4):
     """
     Sparse Feature Saliency Attack (JSMA-inspired).
     Computes sensitivity of all features and perturbs ONLY the top sensitive features,
@@ -122,6 +127,7 @@ def jsma_sparse_attack(model, fraud_transaction, epsilon=0.08, max_features=4, d
     """
     x = fraud_transaction.copy()
     n_features = len(x)
+    probe_delta = max(0.04, epsilon)
     
     # Evaluate feature sensitivity: |dP / dx_i|
     sensitivities = []
@@ -129,7 +135,7 @@ def jsma_sparse_attack(model, fraud_transaction, epsilon=0.08, max_features=4, d
     
     for i in range(n_features):
         x_plus = x.copy()
-        x_plus[i] += delta
+        x_plus[i] += probe_delta
         p_plus = model.predict_proba([x_plus])[0][1]
         diff = abs(p_plus - base_prob)
         sensitivities.append((i, diff))
@@ -139,14 +145,15 @@ def jsma_sparse_attack(model, fraud_transaction, epsilon=0.08, max_features=4, d
     
     # Iteratively nudge only the top features
     for step in range(30):
-        pred = model.predict([x])[0]
-        if pred == 0:
-            return x, step + 1, True
-            
         for idx in top_feature_indices:
-            # Shift towards feature zero
-            direction = -np.sign(x[idx]) if x[idx] != 0 else -1.0
+            if safe_anchor is not None:
+                direction = np.sign(safe_anchor[idx] - x[idx]) if safe_anchor[idx] != x[idx] else -1.0
+            else:
+                direction = -np.sign(x[idx]) if x[idx] != 0 else -1.0
             x[idx] += epsilon * direction
+            
+        if model.predict([x])[0] == 0:
+            return x, step + 1, True
             
     final_pred = model.predict([x])[0]
     return x, 30, (final_pred == 0)

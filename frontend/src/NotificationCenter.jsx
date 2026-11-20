@@ -294,7 +294,7 @@ function SettingsModal({ onClose }) {
 }
 
 // ── Incident Card ─────────────────────────────────────────────────────────────
-function IncidentCard({ incident, onAction }) {
+function IncidentCard({ incident, onAction, onOpenForensics }) {
   const [acting, setActing] = useState(false)
   const ts = new Date(incident.timestamp).toLocaleTimeString()
   const fraudPct = Math.round((incident.fraud_ratio || 0) * 100)
@@ -334,12 +334,23 @@ function IncidentCard({ incident, onAction }) {
       <span className={`severity-badge ${incident.severity}`}>{incident.severity}</span>
       <div className="incident-meta">
         <span>⚡ Score</span><span><strong>{(incident.threat_score || 0).toFixed(3)}</strong></span>
-        <span>🎯 ε</span><span>{incident.epsilon}</span>
+        <span>🎯 Attack</span><span>{incident.attack_method || 'FGSM'}</span>
         <span>🔍 Fraud ratio</span><span>{fraudPct}%</span>
         <span>🤖 ML</span><span>{incident.ml_prediction}</span>
         <span>🕐 Time</span><span>{ts}</span>
         <span>📋 Status</span><span>{statusLabel}</span>
       </div>
+
+      <div style={{ margin: '0.5rem 0' }}>
+        <button
+          className="action-btn"
+          style={{ width: '100%', borderColor: 'rgba(14, 165, 233, 0.4)', background: 'rgba(14, 165, 233, 0.1)', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+          onClick={() => onOpenForensics(incident)}
+        >
+          📄 Autonomous AI Forensic Dossier
+        </button>
+      </div>
+
       {incident.status === 'active' && (
         <div className="incident-actions">
           <button className="action-btn" disabled={acting} onClick={() => doAction('mfa_challenge')}>📲 Issue MFA</button>
@@ -352,10 +363,136 @@ function IncidentCard({ incident, onAction }) {
   )
 }
 
+// ── Forensic Dossier Modal ────────────────────────────────────────────────────
+function ForensicDossierModal({ incident, onClose }) {
+  const [brief, setBrief] = useState(incident.forensic_brief || null)
+  const [loading, setLoading] = useState(!incident.forensic_brief)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!brief) {
+      fetch(`http://localhost:8000/api/incidents/${incident.id}/forensics`)
+        .then(r => r.json())
+        .then(data => {
+          if (data?.forensics) setBrief(data.forensics)
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false))
+    }
+  }, [incident.id, brief])
+
+  const copyMarkdown = () => {
+    if (brief?.markdown_report) {
+      navigator.clipboard.writeText(brief.markdown_report)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  return (
+    <div className="settings-modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="settings-modal forensic-modal">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-medium)', paddingBottom: '0.8rem', marginBottom: '1rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.3rem' }}>
+              <span className="forensic-badge">INCIDENT DOSSIER</span>
+              <span className={`severity-badge ${incident.severity}`}>{incident.severity}</span>
+            </div>
+            <h3 style={{ margin: 0, fontSize: '1.2rem' }}>AdvGuard Forensic Advisory #{incident.id}</h3>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              {brief?.timestamp || incident.timestamp} &bull; Threat Score: <strong>{(incident.threat_score || 0).toFixed(4)}</strong>
+            </span>
+          </div>
+          <button className="action-btn" onClick={onClose}>✕</button>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+            <span className="spinner" /> Analyzing spatial manifold &amp; generating dossier…
+          </div>
+        ) : (
+          <div className="forensic-modal-body">
+            {/* Section 1: Executive Summary */}
+            <div className="forensic-section">
+              <h4>🛡️ Executive Incident Summary</h4>
+              <p className="forensic-prose">{brief?.executive_summary}</p>
+            </div>
+
+            {/* Section 2: Attack Vector Analysis */}
+            <div className="forensic-section">
+              <h4>🎯 Adversarial Vector Analysis ({brief?.attack_method})</h4>
+              <p className="forensic-prose">{brief?.attack_vector_analysis}</p>
+              <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                <span className="distortion-pill">L₂ Euclidean: <strong>{brief?.distortion?.l2}</strong></span>
+                <span className="distortion-pill">L_∞ Bound: <strong>{brief?.distortion?.linf}</strong></span>
+                <span className="distortion-pill">Manipulated Features: <strong>{brief?.distortion?.changed_count}/{brief?.distortion?.total_features}</strong></span>
+              </div>
+            </div>
+
+            {/* Section 3: Exploited Feature Forensics */}
+            {brief?.feature_insights?.length > 0 && (
+              <div className="forensic-section">
+                <h4>📊 Exploited Attribute Attribution (Highest Gradient Drift)</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  {brief.feature_insights.map((fi, i) => (
+                    <div key={i} className="forensic-feature-card">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.8rem' }}>{fi.name} &bull; <small style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{fi.description}</small></span>
+                        <span className={`tf-delta ${fi.delta > 0 ? 'delta-pos' : 'delta-neg'}`}>
+                          {fi.delta > 0 ? `+${fi.delta}` : fi.delta}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                        {fi.significance} (Shift: <code>{fi.original}</code> → <code>{fi.perturbed}</code>)
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Section 4: Geometric Manifold Proof */}
+            <div className="forensic-section">
+              <h4>🌲 Geometric Manifold &amp; Centroid Verification</h4>
+              <p className="forensic-prose">{brief?.spatial_proof}</p>
+            </div>
+
+            {/* Section 5: Regulatory Compliance */}
+            <div className="forensic-section">
+              <h4>⚖️ Regulatory Compliance &amp; Audit Trail</h4>
+              <ul className="forensic-list">
+                {brief?.compliance_notes?.map((cn, i) => <li key={i}>{cn}</li>)}
+              </ul>
+            </div>
+
+            {/* Section 6: Prescribed Actions */}
+            <div className="forensic-section">
+              <h4>⚡ Prescribed Security Countermeasures</h4>
+              <ul className="forensic-list">
+                {brief?.recommended_actions?.map((ra, i) => <li key={i}>{ra}</li>)}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-medium)', paddingTop: '1rem', marginTop: '1rem' }}>
+          <button className="action-btn" onClick={copyMarkdown} disabled={!brief}>
+            {copied ? '✅ Copied to Clipboard!' : '📋 Copy Full Markdown Dossier'}
+          </button>
+          <button className="action-btn" onClick={onClose} style={{ background: 'var(--primary)', color: '#fff', borderColor: 'var(--primary)' }}>
+            Close Advisory
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── NotificationCenter (default export) ──────────────────────────────────────
 export default function NotificationCenter({ incidents: propIncidents }) {
   const [localIncidents, setLocalIncidents] = useState(propIncidents || [])
   const [showSettings, setShowSettings] = useState(false)
+  const [forensicIncident, setForensicIncident] = useState(null)
 
   // Sync when prop changes
   useEffect(() => {
@@ -390,11 +527,17 @@ export default function NotificationCenter({ incidents: propIncidents }) {
         </div>
       ) : (
         sorted.map(inc => (
-          <IncidentCard key={inc.id} incident={inc} onAction={handleAction} />
+          <IncidentCard
+            key={inc.id}
+            incident={inc}
+            onAction={handleAction}
+            onOpenForensics={(target) => setForensicIncident(target)}
+          />
         ))
       )}
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {forensicIncident && <ForensicDossierModal incident={forensicIncident} onClose={() => setForensicIncident(null)} />}
     </div>
   )
 }
