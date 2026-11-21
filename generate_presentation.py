@@ -11,20 +11,21 @@ def create_presentation():
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
 
-    # Color Palette: Modern Dark Tech / FinTech Cybersecurity
-    NAVY = RGBColor(15, 23, 42)        # #0f172a
-    CARD_BG = RGBColor(30, 41, 59)     # #1e293b
-    CYAN = RGBColor(6, 182, 212)       # #06b6d4 Accent
-    WHITE = RGBColor(248, 250, 252)    # #f8fafc Text
-    GRAY = RGBColor(148, 163, 184)     # #94a3b8 Muted
-    GREEN = RGBColor(34, 197, 94)      # #22c55e Success
-    PURPLE = RGBColor(168, 85, 247)    # #a855f7 LSH
-    RED = RGBColor(239, 68, 68)        # #ef4444 Alert
+    # Clean Professional Light/White Theme Colors
+    BG_WHITE = RGBColor(255, 255, 255)       # Pure White background
+    CARD_BG = RGBColor(248, 250, 252)        # Very light clean gray (#f8fafc)
+    CARD_BORDER = RGBColor(226, 232, 240)    # Soft slate border (#e2e8f0)
+    PRIMARY_BLUE = RGBColor(30, 58, 138)     # Deep Navy / Academic Blue (#1e3a8a)
+    ACCENT_CYAN = RGBColor(2, 132, 199)      # Bright Professional Blue/Cyan (#0284c7)
+    TEXT_MAIN = RGBColor(15, 23, 42)         # Near Black for high readability (#0f172a)
+    TEXT_MUTED = RGBColor(71, 85, 105)       # Charcoal / Muted gray (#475569)
+    GREEN = RGBColor(22, 163, 74)            # Emerald Success (#16a34a)
+    RED = RGBColor(220, 38, 38)              # Crimson Alert (#dc2626)
 
     blank_layout = prs.slide_layouts[6]
     assets_dir = r"E:\DS-CP\AdvGuard\report_assets"
 
-    def set_slide_background(slide, color=NAVY):
+    def set_slide_background(slide, color=BG_WHITE):
         bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(13.333), Inches(7.5))
         bg.fill.solid()
         bg.fill.fore_color.rgb = color
@@ -41,21 +42,21 @@ def create_presentation():
         p0.text = category.upper()
         p0.font.size = Pt(11)
         p0.font.bold = True
-        p0.font.color.rgb = CYAN
+        p0.font.color.rgb = ACCENT_CYAN
         
         p1 = tf.add_paragraph()
         p1.text = title_text
         p1.font.size = Pt(24)
         p1.font.bold = True
-        p1.font.color.rgb = WHITE
+        p1.font.color.rgb = PRIMARY_BLUE
 
     # ==========================================
-    # SLIDE 1: TITLE SLIDE
+    # SLIDE 1: TITLE SLIDE (WHITE THEME)
     # ==========================================
     s1 = prs.slides.add_slide(blank_layout)
     set_slide_background(s1)
 
-    tb1 = s1.shapes.add_textbox(Inches(0.8), Inches(1.2), Inches(11.7), Inches(2.2))
+    tb1 = s1.shapes.add_textbox(Inches(0.8), Inches(1.0), Inches(11.7), Inches(2.4))
     tf1 = tb1.text_frame
     tf1.word_wrap = True
     
@@ -63,26 +64,27 @@ def create_presentation():
     p.text = "🛡️ ADVGUARD"
     p.font.size = Pt(40)
     p.font.bold = True
-    p.font.color.rgb = CYAN
+    p.font.color.rgb = PRIMARY_BLUE
 
     p = tf1.add_paragraph()
     p.text = "Geometric Adversarial Evasion Defense for Financial ML using C++ Spatial KD-Trees & LSH"
     p.font.size = Pt(20)
-    p.font.color.rgb = WHITE
+    p.font.bold = True
+    p.font.color.rgb = TEXT_MAIN
 
     p = tf1.add_paragraph()
     p.text = "Fundamentals of Data Structures (FODS) Course Project | Academic Year 2025–2026"
     p.font.size = Pt(14)
-    p.font.color.rgb = GRAY
+    p.font.color.rgb = TEXT_MUTED
 
     # Member Grid Card
-    card = s1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(3.8), Inches(11.7), Inches(3.0))
+    card = s1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(3.6), Inches(11.7), Inches(3.2))
     card.fill.solid()
     card.fill.fore_color.rgb = CARD_BG
-    card.line.color.rgb = CYAN
+    card.line.color.rgb = ACCENT_CYAN
     card.line.width = Pt(1.5)
 
-    tb_team = s1.shapes.add_textbox(Inches(1.1), Inches(4.0), Inches(11.1), Inches(2.6))
+    tb_team = s1.shapes.add_textbox(Inches(1.1), Inches(3.8), Inches(11.1), Inches(2.8))
     tf_team = tb_team.text_frame
     tf_team.word_wrap = True
 
@@ -90,7 +92,7 @@ def create_presentation():
     p.text = "PROJECT TEAM (GROUP 09 · CSE-AIML-D):"
     p.font.size = Pt(14)
     p.font.bold = True
-    p.font.color.rgb = CYAN
+    p.font.color.rgb = PRIMARY_BLUE
 
     team_members = [
         ("Medhansh Desai", "Roll No: 08", "PRN: 1251030262", "Spatial KD-Tree & Max-Heap Algorithms"),
@@ -103,7 +105,7 @@ def create_presentation():
         p = tf_team.add_paragraph()
         p.text = f"• {name} ({rno} | {prn}) — Focus: {role}"
         p.font.size = Pt(13)
-        p.font.color.rgb = WHITE
+        p.font.color.rgb = TEXT_MAIN
 
     p_guide = tf_team.add_paragraph()
     p_guide.text = "\nProject Guide: Prof. Jyoti Kanjalkar"
@@ -133,14 +135,14 @@ def create_presentation():
         p = tf2.add_paragraph() if tf2.paragraphs[0].text else tf2.paragraphs[0]
         p.text = f"• {title} "
         p.font.bold = True
-        p.font.size = Pt(14)
-        p.font.color.rgb = CYAN
+        p.font.size = Pt(13)
+        p.font.color.rgb = PRIMARY_BLUE
         
         run = p.add_run()
         run.text = desc
         run.font.bold = False
-        run.font.size = Pt(13)
-        run.font.color.rgb = WHITE
+        run.font.size = Pt(12)
+        run.font.color.rgb = TEXT_MAIN
 
     img_path = os.path.join(assets_dir, "fig3_decision_boundary_kd_override.png")
     if os.path.exists(img_path):
@@ -155,7 +157,7 @@ def create_presentation():
 
     col_data = [
         ("1. ML Models are Blind to Context", "A mathematical classifier calculates f(x) locally. It cannot discern whether an input vector is physically surrounded by historical fraudulent behavior in multidimensional space.", RED),
-        ("2. Real-Time Latency Imperative", "Payment gateways (Visa, SWIFT, UPI) mandate sub-10ms decision times. Heavy deep learning defenses cause prohibitive latency spikes and dropped transactions.", CYAN),
+        ("2. Real-Time Latency Imperative", "Payment gateways (Visa, SWIFT, UPI) mandate sub-10ms decision times. Heavy deep learning defenses cause prohibitive latency spikes and dropped transactions.", ACCENT_CYAN),
         ("3. The Power of Classical DSA", "Spatial Data Structures (KD-Trees) offer deterministic, un-gameable geometric proofs. Even if an attacker fools the decision hyperplane, spatial proximity cannot be spoofed.", GREEN)
     ]
 
@@ -180,7 +182,7 @@ def create_presentation():
         p2 = tf.add_paragraph()
         p2.text = f"\n{desc}"
         p2.font.size = Pt(13)
-        p2.font.color.rgb = WHITE
+        p2.font.color.rgb = TEXT_MAIN
 
     # ==========================================
     # SLIDE 4: OBJECTIVES & SCOPE
@@ -197,7 +199,7 @@ def create_presentation():
     p.text = "🎯 PRIMARY OBJECTIVES"
     p.font.size = Pt(16)
     p.font.bold = True
-    p.font.color.rgb = CYAN
+    p.font.color.rgb = PRIMARY_BLUE
 
     objs = [
         ("High-Dimensional Spatial Safety Net:", "Implement a custom C++ KD-Tree across 29 continuous features to perform O(log N) nearest neighbor search."),
@@ -210,11 +212,11 @@ def create_presentation():
         p.text = f"• {o_title} "
         p.font.bold = True
         p.font.size = Pt(13)
-        p.font.color.rgb = WHITE
+        p.font.color.rgb = PRIMARY_BLUE
         run = p.add_run()
         run.text = o_desc
         run.font.bold = False
-        run.font.color.rgb = GRAY
+        run.font.color.rgb = TEXT_MUTED
 
     tb4_r = s4.shapes.add_textbox(Inches(6.9), Inches(1.6), Inches(5.6), Inches(5.3))
     tf4_r = tb4_r.text_frame
@@ -236,11 +238,11 @@ def create_presentation():
         p.text = f"• {s_title} "
         p.font.bold = True
         p.font.size = Pt(13)
-        p.font.color.rgb = WHITE
+        p.font.color.rgb = GREEN
         run = p.add_run()
         run.text = s_desc
         run.font.bold = False
-        run.font.color.rgb = GRAY
+        run.font.color.rgb = TEXT_MUTED
 
     # ==========================================
     # SLIDE 5: LITERATURE SURVEY
@@ -260,8 +262,8 @@ def create_presentation():
         card = s5.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), y, Inches(11.7), Inches(1.5))
         card.fill.solid()
         card.fill.fore_color.rgb = CARD_BG
-        card.line.color.rgb = CYAN
-        card.line.width = Pt(1)
+        card.line.color.rgb = CARD_BORDER
+        card.line.width = Pt(1.5)
 
         tb = s5.shapes.add_textbox(Inches(1.0), y + Inches(0.15), Inches(11.3), Inches(1.2))
         tf = tb.text_frame
@@ -271,12 +273,12 @@ def create_presentation():
         p.text = f"📖 {title}"
         p.font.size = Pt(15)
         p.font.bold = True
-        p.font.color.rgb = CYAN
+        p.font.color.rgb = PRIMARY_BLUE
 
         p2 = tf.add_paragraph()
         p2.text = desc
         p2.font.size = Pt(12)
-        p2.font.color.rgb = WHITE
+        p2.font.color.rgb = TEXT_MAIN
 
     # ==========================================
     # SLIDE 6: FUNCTIONS & OPERATIONS (BLOCK DIAGRAM)
@@ -302,11 +304,11 @@ def create_presentation():
         p.text = f"▶ {o_name}: "
         p.font.bold = True
         p.font.size = Pt(13)
-        p.font.color.rgb = CYAN
+        p.font.color.rgb = PRIMARY_BLUE
         run = p.add_run()
         run.text = o_detail
         run.font.bold = False
-        run.font.color.rgb = WHITE
+        run.font.color.rgb = TEXT_MAIN
 
     img_path = os.path.join(assets_dir, "image3.png")
     if os.path.exists(img_path):
@@ -335,8 +337,8 @@ def create_presentation():
         card = s7.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, Inches(5.6), Inches(2.4))
         card.fill.solid()
         card.fill.fore_color.rgb = CARD_BG
-        card.line.color.rgb = CYAN
-        card.line.width = Pt(1.2)
+        card.line.color.rgb = CARD_BORDER
+        card.line.width = Pt(1.5)
 
         tb = s7.shapes.add_textbox(x + Inches(0.2), y + Inches(0.15), Inches(5.2), Inches(2.1))
         tf = tb.text_frame
@@ -346,12 +348,12 @@ def create_presentation():
         p.text = title
         p.font.size = Pt(15)
         p.font.bold = True
-        p.font.color.rgb = CYAN
+        p.font.color.rgb = PRIMARY_BLUE
 
         p2 = tf.add_paragraph()
         p2.text = f"\n{desc}"
         p2.font.size = Pt(12)
-        p2.font.color.rgb = WHITE
+        p2.font.color.rgb = TEXT_MAIN
 
     # ==========================================
     # SLIDE 8: INPUT DATA SOURCES & PERTURBATION
@@ -375,12 +377,12 @@ def create_presentation():
         p.text = f"• {d_title} "
         p.font.bold = True
         p.font.size = Pt(13)
-        p.font.color.rgb = CYAN
+        p.font.color.rgb = PRIMARY_BLUE
         run = p.add_run()
         run.text = d_desc
         run.font.bold = False
         run.font.size = Pt(12)
-        run.font.color.rgb = WHITE
+        run.font.color.rgb = TEXT_MAIN
 
     img_path = os.path.join(assets_dir, "fig2_attack_perturbation.png")
     if os.path.exists(img_path):
@@ -405,7 +407,7 @@ def create_presentation():
     p.text = "🏛️ THREE-TIER PIPELINE"
     p.font.size = Pt(16)
     p.font.bold = True
-    p.font.color.rgb = CYAN
+    p.font.color.rgb = PRIMARY_BLUE
 
     arch_points = [
         ("1. Presentation Tier (React 18 / Vite):", "Interactive attack simulator, DSA benchmark curves, and real-time SMS / Push notification hub."),
@@ -418,12 +420,12 @@ def create_presentation():
         p.text = f"• {a_title} "
         p.font.bold = True
         p.font.size = Pt(13)
-        p.font.color.rgb = WHITE
+        p.font.color.rgb = PRIMARY_BLUE
         run = p.add_run()
         run.text = a_desc
         run.font.bold = False
         run.font.size = Pt(12)
-        run.font.color.rgb = GRAY
+        run.font.color.rgb = TEXT_MUTED
 
     # ==========================================
     # SLIDE 10: COMPLEXITY ANALYSIS OF DATA STRUCTURES
@@ -444,7 +446,7 @@ def create_presentation():
     p.text = "⚡ EMPIRICAL & ASYMPTOTIC COMPLEXITY"
     p.font.size = Pt(15)
     p.font.bold = True
-    p.font.color.rgb = CYAN
+    p.font.color.rgb = PRIMARY_BLUE
 
     comp_data = [
         ("KD-Tree Spatial Search", "O(log N)", "O(N·d)", "Prunes 90%+ of subtrees; delivers 14.9x speedup at N=10k"),
@@ -458,13 +460,13 @@ def create_presentation():
         p.text = f"• {name}: "
         p.font.bold = True
         p.font.size = Pt(12)
-        p.font.color.rgb = WHITE
+        p.font.color.rgb = PRIMARY_BLUE
         
         run = p.add_run()
         run.text = f"Avg: {avg_c} | Worst: {wst_c}\n  ↳ {note}"
         run.font.bold = False
         run.font.size = Pt(11)
-        run.font.color.rgb = GRAY
+        run.font.color.rgb = TEXT_MUTED
 
     # ==========================================
     # SLIDE 11: CONCLUSION, SCREENSHOTS & FUTURE SCOPE
@@ -493,17 +495,18 @@ def create_presentation():
         p.text = f"• {c_title} "
         p.font.bold = True
         p.font.size = Pt(12)
-        p.font.color.rgb = WHITE
+        p.font.color.rgb = TEXT_MAIN
         run = p.add_run()
         run.text = c_desc
         run.font.bold = False
-        run.font.color.rgb = GRAY
+        run.font.size = Pt(11)
+        run.font.color.rgb = TEXT_MUTED
 
     p_f = tf11_l.add_paragraph()
     p_f.text = "\n🚀 FUTURE SCOPE & ENHANCEMENTS:"
     p_f.font.size = Pt(14)
     p_f.font.bold = True
-    p_f.font.color.rgb = CYAN
+    p_f.font.color.rgb = PRIMARY_BLUE
 
     futures = [
         ("Dynamic Tree Rebalancing:", "Implement scapegoat or AVL-style spatial balancing during live streaming ingestion."),
@@ -515,20 +518,26 @@ def create_presentation():
         p.text = f"• {f_title} "
         p.font.bold = True
         p.font.size = Pt(11)
-        p.font.color.rgb = WHITE
+        p.font.color.rgb = TEXT_MAIN
         run = p.add_run()
         run.text = f_desc
         run.font.bold = False
-        run.font.color.rgb = GRAY
+        run.font.size = Pt(11)
+        run.font.color.rgb = TEXT_MUTED
 
     img_path = os.path.join(assets_dir, "fig4_security_matrix.png")
     if os.path.exists(img_path):
         s11.shapes.add_picture(img_path, Inches(6.8), Inches(1.6), width=Inches(5.7))
 
     # Save presentation
-    output_path = r"E:\DS-CP\AdvGuard\AdvGuard_FODS_CP_Presentation.pptx"
+    output_path = r"E:\DS-CP\AdvGuard\AdvGuard_FODS_CP_White_Theme.pptx"
     prs.save(output_path)
-    print(f"Presentation successfully created at: {output_path}")
+    # Also attempt to overwrite the original if not locked
+    try:
+        prs.save(r"E:\DS-CP\AdvGuard\AdvGuard_FODS_CP_Presentation.pptx")
+    except Exception:
+        pass
+    print(f"Presentation successfully created with CLEAN WHITE THEME at: {output_path}")
 
 if __name__ == "__main__":
     create_presentation()
