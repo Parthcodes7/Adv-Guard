@@ -248,9 +248,7 @@ function App() {
         throw new Error(err.detail || 'Failed to execute attack')
       }
       const data = await response.json()
-      if (!data.success) {
-        throw new Error(data.message || 'Attack did not evade model. Try increasing epsilon.')
-      }
+      // Show results even if attack didn't fully evade — AdvGuard defense still runs
       setResult(data)
       setParsed(parseCppReport(data.cpp_report))
       setPhase(3)

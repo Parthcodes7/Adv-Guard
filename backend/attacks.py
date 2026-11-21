@@ -50,7 +50,7 @@ def analyze_perturbation(original, perturbed):
         "top_features": top_features
     }
 
-def fgsm_attack(model, fraud_transaction, safe_anchor=None, epsilon=0.05, max_steps=50):
+def fgsm_attack(model, fraud_transaction, safe_anchor=None, epsilon=0.05, max_steps=200):
     """
     Fast Gradient Sign Method (FGSM) for tabular models.
     Computes numerical gradient of P(fraud | x) and steps in the direction of steepest descent.
@@ -58,33 +58,43 @@ def fgsm_attack(model, fraud_transaction, safe_anchor=None, epsilon=0.05, max_st
     x = fraud_transaction.copy()
     n_features = len(x)
     probe_delta = max(0.04, epsilon)
-    
+
+    # Adaptive epsilon: start bigger to escape quickly, then refine
+    adaptive_eps = max(epsilon, 0.12)
+
     for step in range(max_steps):
+        # Anneal epsilon after half the budget
+        if step == max_steps // 2:
+            adaptive_eps = epsilon
+
         # Estimate gradient of fraud probability w.r.t each feature
         grad = np.zeros(n_features)
         curr_prob = model.predict_proba([x])[0][1]
-        
+
         for i in range(n_features):
             x_plus = x.copy()
             x_plus[i] += probe_delta
             p_plus = model.predict_proba([x_plus])[0][1]
             grad[i] = (p_plus - curr_prob) / probe_delta
-            
+
         if np.all(np.abs(grad) < 1e-5):
             # Gradient plateau fallback: step along vector toward safe centroid
             if safe_anchor is not None:
                 direction = np.sign(safe_anchor - x)
             else:
                 direction = -np.sign(x)
+                # Also try random perturbation to escape flat region
+                if step % 10 == 0:
+                    direction = np.random.choice([-1.0, 1.0], size=n_features)
         else:
             # Gradient descent: step in direction that decreases fraud probability
             direction = -np.sign(grad)
-            
-        x += epsilon * direction
-        
+
+        x += adaptive_eps * direction
+
         if model.predict([x])[0] == 0:
             return x, step + 1, True
-            
+
     final_pred = model.predict([x])[0]
     return x, max_steps, (final_pred == 0)
 
@@ -119,44 +129,58 @@ def boundary_attack(model, fraud_transaction, safe_anchor, max_iterations=30):
     
     return boundary_sample, max_iterations, (final_pred == 0)
 
-def jsma_sparse_attack(model, fraud_transaction, safe_anchor=None, epsilon=0.08, max_features=4):
+def jsma_sparse_attack(model, fraud_transaction, safe_anchor=None, epsilon=0.08, max_features=8):
     """
     Sparse Feature Saliency Attack (JSMA-inspired).
     Computes sensitivity of all features and perturbs ONLY the top sensitive features,
-    leaving the remaining 85%+ features completely unmodified (high sparsity).
+    leaving the remaining 70%+ features completely unmodified (high sparsity).
     """
     x = fraud_transaction.copy()
     n_features = len(x)
     probe_delta = max(0.04, epsilon)
-    
-    # Evaluate feature sensitivity: |dP / dx_i|
+
+    # Evaluate feature sensitivity in BOTH directions: pick direction that lowers fraud prob
     sensitivities = []
     base_prob = model.predict_proba([x])[0][1]
-    
+
     for i in range(n_features):
-        x_plus = x.copy()
-        x_plus[i] += probe_delta
-        p_plus = model.predict_proba([x_plus])[0][1]
-        diff = abs(p_plus - base_prob)
-        sensitivities.append((i, diff))
-        
+        x_plus = x.copy(); x_plus[i] += probe_delta
+        x_minus = x.copy(); x_minus[i] -= probe_delta
+        p_plus  = model.predict_proba([x_plus])[0][1]
+        p_minus = model.predict_proba([x_minus])[0][1]
+        # Best direction = whichever gives lowest fraud prob
+        best_drop = base_prob - min(p_plus, p_minus)
+        best_dir  = -1.0 if p_minus < p_plus else 1.0
+        sensitivities.append((i, best_drop, best_dir))
+
+    # Sort by biggest drop in fraud probability
     sensitivities.sort(key=lambda s: s[1], reverse=True)
-    top_feature_indices = [s[0] for s in sensitivities[:max_features]]
-    
+    # Keep top features + their pre-computed best directions
+    top_features = [(s[0], s[2]) for s in sensitivities[:max_features]]
+
+    # Also compute anchor-based directions as fallback
+    def anchor_dir(idx):
+        if safe_anchor is not None and safe_anchor[idx] != x[idx]:
+            return float(np.sign(safe_anchor[idx] - x[idx]))
+        return -1.0
+
     # Iteratively nudge only the top features
-    for step in range(30):
-        for idx in top_feature_indices:
-            if safe_anchor is not None:
-                direction = np.sign(safe_anchor[idx] - x[idx]) if safe_anchor[idx] != x[idx] else -1.0
-            else:
-                direction = -np.sign(x[idx]) if x[idx] != 0 else -1.0
-            x[idx] += epsilon * direction
-            
+    for step in range(100):
+        for idx, best_dir in top_features:
+            # Re-evaluate direction every 10 steps to track gradient changes
+            if step % 10 == 0:
+                x_plus = x.copy(); x_plus[idx] += probe_delta
+                x_minus = x.copy(); x_minus[idx] -= probe_delta
+                p_plus  = model.predict_proba([x_plus])[0][1]
+                p_minus = model.predict_proba([x_minus])[0][1]
+                best_dir = -1.0 if p_minus < p_plus else 1.0
+            x[idx] += epsilon * best_dir
+
         if model.predict([x])[0] == 0:
             return x, step + 1, True
-            
+
     final_pred = model.predict([x])[0]
-    return x, 30, (final_pred == 0)
+    return x, 100, (final_pred == 0)
 
 def heuristic_attack(model, fraud_transaction, epsilon=0.1, max_steps=500):
     """Baseline heuristic directional perturbation."""

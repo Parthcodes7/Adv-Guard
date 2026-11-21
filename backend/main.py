@@ -320,18 +320,24 @@ def evaluate_transaction(req: EvasionRequest):
             perturbed_txn, steps, success = boundary_attack(model, target_txn, safe_anchor)
             attack_label = "Decision Boundary Probing"
         elif method == "jsma":
-            perturbed_txn, steps, success = jsma_sparse_attack(model, target_txn, epsilon=req.epsilon)
+            safe_data_jsma = df[df[29] == 0.0].drop(columns=[29]).values
+            safe_anchor_jsma = safe_data_jsma.mean(axis=0)
+            perturbed_txn, steps, success = jsma_sparse_attack(model, target_txn, safe_anchor=safe_anchor_jsma, epsilon=req.epsilon)
             attack_label = "Sparse Feature Saliency (JSMA)"
         elif method == "heuristic":
             perturbed_txn, steps, success = heuristic_attack(model, target_txn, epsilon=req.epsilon)
             attack_label = "Heuristic Directional"
         else: # default "fgsm"
-            perturbed_txn, steps, success = fgsm_attack(model, target_txn, epsilon=req.epsilon)
+            safe_data_fgsm = df[df[29] == 0.0].drop(columns=[29]).values
+            safe_anchor_fgsm = safe_data_fgsm.mean(axis=0)
+            perturbed_txn, steps, success = fgsm_attack(model, target_txn, safe_anchor=safe_anchor_fgsm, epsilon=req.epsilon)
             attack_label = "FGSM (Fast Gradient Sign)"
             
         if not success:
-            return {"success": False, "message": f"Attack ({attack_label}) failed to evade ML model."}
-        ml_prediction = "Safe (Fooled)"
+            # Attack didn't fully evade — still run AdvGuard engine on best perturbed sample
+            ml_prediction = "Fraud (Detected)"
+        else:
+            ml_prediction = "Safe (Fooled)"
         distortion_stats = analyze_perturbation(target_txn, perturbed_txn)
     else:
         perturbed_txn = target_txn.copy()
