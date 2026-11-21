@@ -20,11 +20,15 @@ function playCyberChime() {
 
 // ── Desktop Notification ──────────────────────────────────────────────────────
 function showDesktopNotification(incident) {
-  if (Notification.permission === 'granted') {
-    new Notification(`⚠️ AdvGuard ${incident.severity} Alert`, {
-      body: `Adversarial Evasion Blocked | Threat Score: ${incident.threat_score.toFixed(2)} | ε=${incident.epsilon}`,
-      icon: '/favicon.ico'
-    })
+  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification(`⚠️ AdvGuard ${incident.severity} Alert`, {
+        body: `Adversarial Evasion Blocked | Threat Score: ${incident.threat_score.toFixed(2)} | ε=${incident.epsilon}`,
+        icon: '/favicon.ico'
+      })
+    } catch (e) {
+      // Notifications restricted or disabled
+    }
   }
 }
 
@@ -110,9 +114,15 @@ export function useIncidentPoller() {
   }, [])
 
   useEffect(() => {
-    // Request desktop notification permission
-    if (Notification.permission === 'default') {
-      Notification.requestPermission()
+    // Request desktop notification permission safely
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        if (Notification.permission === 'default') {
+          Notification.requestPermission().catch(() => {})
+        }
+      } catch (e) {
+        // Notification permission API not permitted in this context
+      }
     }
     fetchIncidents()
     const id = setInterval(fetchIncidents, 3000)

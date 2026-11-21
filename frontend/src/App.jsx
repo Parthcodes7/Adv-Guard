@@ -110,9 +110,12 @@ const InsightBox = ({ color = 'cyan', icon = 'ℹ️', title, children }) => (
 
 // Plain-English narrative shown below results
 const NarrativeSummary = ({ result, parsed, blocked, steps, epsilon }) => {
+  if (!result || !result.perturbed_features) return null
   const isAdv = result.scenario === 'adversarial';
   const isSafe = result.scenario === 'safe';
-  const changedCount = isAdv ? result.perturbed_features.filter((v, i) => Math.abs(v - result.original_features[i]) > 0.0001).length : 0;
+  const perturbed = result.perturbed_features || [];
+  const original = result.original_features || [];
+  const changedCount = isAdv ? perturbed.filter((v, i) => Math.abs(v - (original[i] ?? v)) > 0.0001).length : 0;
   const fraudPct = parsed?.fraudRatio != null ? Math.round(parsed.fraudRatio * 100) : null
   
   return (
@@ -245,6 +248,9 @@ function App() {
         throw new Error(err.detail || 'Failed to execute attack')
       }
       const data = await response.json()
+      if (!data.success) {
+        throw new Error(data.message || 'Attack did not evade model. Try increasing epsilon.')
+      }
       setResult(data)
       setParsed(parseCppReport(data.cpp_report))
       setPhase(3)
@@ -471,7 +477,7 @@ function App() {
       </section>
 
       {/* Results */}
-      {result && (
+      {result && result.perturbed_features && (
         <div ref={resultsRef} className="results-grid">
 
           {/* Feature Perturbation Map */}
@@ -480,8 +486,8 @@ function App() {
             <p className="card-desc">Each box is one numerical feature of the transaction (e.g. amount, velocity). Red pulsing boxes were altered by the attacker.</p>
 
             <InsightBox color="red" icon="⚠️" title="Why this is dangerous">
-              The attacker changed {result.perturbed_features.filter((v, i) => Math.abs(v - result.original_features[i]) > 0.0001).length} out
-              of {result.perturbed_features.length} features by at most ε={epsilon} per step, over {steps} iterations.
+              The attacker changed {(result.perturbed_features || []).filter((v, i) => Math.abs(v - ((result.original_features || [])[i] ?? v)) > 0.0001).length} out
+              of {(result.perturbed_features || []).length} features by at most ε={epsilon} per step, over {steps} iterations.
               Each individual change is so small it looks like normal rounding noise — yet together they completely
               flip the ML model's prediction from <strong>FRAUD → SAFE</strong>.
               This is why ML models alone are insufficient for high-stakes financial decisions.
@@ -492,8 +498,8 @@ function App() {
               <span className="leg-dot leg-orig" /> Unchanged
             </div>
             <div className="feature-grid">
-              {result.perturbed_features.map((val, idx) => {
-                const orig = result.original_features[idx]
+              {(result.perturbed_features || []).map((val, idx) => {
+                const orig = (result.original_features || [])[idx] ?? val
                 const changed = Math.abs(val - orig) > 0.0001
                 const delta = (val - orig).toFixed(3)
                 return (
@@ -610,7 +616,7 @@ function App() {
                   <span className="terminal-title">advguard_engine.exe — stdout</span>
                 </div>
                 <div className="console-output">
-                  {result.cpp_report.split('\n').map((line, i) => {
+                  {(result.cpp_report || '').split('\n').map((line, i) => {
                     let cls = ''
                     if (/BLOCKED/i.test(line)) cls = 'highlight-green'
                     if (/APPROVED/i.test(line)) cls = 'highlight-amber'
